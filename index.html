@@ -191,6 +191,9 @@
         // Visual effects
         let screenShake = { x: 0, y: 0, intensity: 0, duration: 0 };
         let flashEffect = { active: false, color: '#ffffff', alpha: 0 };
+        let borderGlow = { active: false, color: '#ffffff', intensity: 0, duration: 0 };
+        let muteIndicatorAlpha = 0;
+        let impactSparks = [];
 
         // Timers
         let ufoSpawnTimer = 0;
@@ -445,6 +448,65 @@
             }
         }
 
+        function addBorderGlow(color, intensity = 1, duration = 0.5) {
+            borderGlow.active = true;
+            borderGlow.color = color;
+            borderGlow.intensity = Math.max(borderGlow.intensity, intensity);
+            borderGlow.duration = Math.max(borderGlow.duration, duration);
+        }
+
+        function updateBorderGlow(dt) {
+            if (borderGlow.duration > 0) {
+                borderGlow.duration -= dt;
+                if (borderGlow.duration <= 0) {
+                    borderGlow.active = false;
+                    borderGlow.intensity = 0;
+                }
+            }
+        }
+
+        // Impact sparks for asteroid hits
+        class ImpactSpark {
+            constructor(x, y, angle) {
+                this.x = x;
+                this.y = y;
+                this.vx = Math.cos(angle) * random(3, 6);
+                this.vy = Math.sin(angle) * random(3, 6);
+                this.life = random(0.3, 0.6);
+                this.maxLife = this.life;
+                this.color = ['#ffff00', '#ff9933', '#ffffff'][randomInt(0, 2)];
+                this.size = random(2, 4);
+            }
+
+            update(dt) {
+                this.x += this.vx * dt * 60;
+                this.y += this.vy * dt * 60;
+                this.life -= dt;
+                this.vx *= 0.95;
+                this.vy *= 0.95;
+            }
+
+            draw() {
+                const alpha = this.life / this.maxLife;
+                ctx.save();
+                ctx.globalAlpha = alpha;
+                ctx.fillStyle = this.color;
+                ctx.shadowBlur = 5;
+                ctx.shadowColor = this.color;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            }
+        }
+
+        function createImpactSparks(x, y, angle, count = 5) {
+            for (let i = 0; i < count; i++) {
+                const spreadAngle = angle + random(-0.5, 0.5);
+                impactSparks.push(new ImpactSpark(x, y, spreadAngle));
+            }
+        }
+
         // ============================================================
         // SCORE POPUP
         // ============================================================
@@ -517,17 +579,20 @@
                     this.vy += Math.sin(this.angle) * acceleration;
                     this.thrustFrame = (this.thrustFrame + 0.2) % 3;
 
-                    // Thrust particles
-                    if (Math.random() < 0.3) {
+                    // Enhanced thrust particles with more variety
+                    if (Math.random() < 0.5) {
                         const tailX = this.x - Math.cos(this.angle) * 20;
                         const tailY = this.y - Math.sin(this.angle) * 20;
+                        const angleSpread = random(-0.3, 0.3);
+                        const particleAngle = this.angle + Math.PI + angleSpread;
+                        const speed = random(1, 3);
                         particles.push(new Particle(
                             tailX, tailY,
-                            this.vx + random(-1, 1),
-                            this.vy + random(-1, 1),
-                            ['#ff9933', '#ff6633', '#ffcc33'][randomInt(0, 2)],
-                            random(2, 4),
-                            random(0.2, 0.5)
+                            Math.cos(particleAngle) * speed + this.vx * 0.3,
+                            Math.sin(particleAngle) * speed + this.vy * 0.3,
+                            ['#ff9933', '#ff6633', '#ffcc33', '#ffaa00', '#ffffff'][randomInt(0, 4)],
+                            random(2, 5),
+                            random(0.3, 0.7)
                         ));
                     }
                 }
@@ -674,6 +739,34 @@
                     ctx.lineTo(-5, 3);
                     ctx.closePath();
                     ctx.fill();
+                }
+
+                // Shoot cooldown indicator - flash when ready
+                if (this.shootCooldown <= 0 && Date.now() % 1000 < 500) {
+                    ctx.strokeStyle = '#00d9ff';
+                    ctx.lineWidth = 2;
+                    ctx.shadowBlur = 8;
+                    ctx.shadowColor = '#00d9ff';
+                    ctx.beginPath();
+                    ctx.arc(0, 0, 22, 0, Math.PI * 2);
+                    ctx.globalAlpha = 0.3;
+                    ctx.stroke();
+                    ctx.globalAlpha = 1;
+                }
+
+                // Combo multiplier visual
+                if (comboMultiplier > 1) {
+                    ctx.font = 'bold 16px Courier New';
+                    const comboColor = comboMultiplier <= 3 ? '#00ffff' : comboMultiplier <= 6 ? '#ff00ff' : '#ff0000';
+                    ctx.fillStyle = comboColor;
+                    ctx.strokeStyle = comboColor;
+                    ctx.textAlign = 'center';
+                    ctx.shadowBlur = 15;
+                    ctx.shadowColor = comboColor;
+                    const pulse = Math.sin(Date.now() / 100) * 0.2 + 1;
+                    ctx.globalAlpha = pulse * 0.8;
+                    ctx.fillText(`×${comboMultiplier}`, 0, -30);
+                    ctx.globalAlpha = 1;
                 }
 
                 ctx.restore();
@@ -1000,6 +1093,7 @@
                 this.rotation = 0;
                 this.vx = random(-0.5, 0.5);
                 this.vy = random(-0.5, 0.5);
+                this.spawnTime = Date.now();
             }
 
             update(dt) {
@@ -1024,6 +1118,30 @@
                 };
 
                 const color = colors[this.type];
+
+                // Spawn animation
+                const spawnAge = (Date.now() - this.spawnTime) / 1000;
+                const spawnProgress = Math.min(1, spawnAge / 0.5);
+                const spawnScale = spawnProgress;
+                const spawnAlpha = spawnProgress;
+
+                ctx.globalAlpha = spawnAlpha;
+                ctx.scale(spawnScale, spawnScale);
+
+                // Spawn ring effect
+                if (spawnAge < 0.5) {
+                    ctx.strokeStyle = color;
+                    ctx.lineWidth = 2;
+                    ctx.shadowBlur = 30;
+                    ctx.shadowColor = color;
+                    const ringRadius = this.radius * (1 + (1 - spawnProgress) * 2);
+                    ctx.globalAlpha = (1 - spawnProgress) * 0.5;
+                    ctx.beginPath();
+                    ctx.arc(0, 0, ringRadius, 0, Math.PI * 2);
+                    ctx.stroke();
+                    ctx.globalAlpha = spawnAlpha;
+                }
+
                 ctx.strokeStyle = color;
                 ctx.lineWidth = 3;
                 ctx.shadowBlur = 20;
@@ -1176,6 +1294,10 @@
                         const particleCount = asteroid.size === 'large' ? 30 : asteroid.size === 'medium' ? 20 : 15;
                         createExplosion(asteroid.x, asteroid.y, particleCount, ['#6b7280', '#9ca3af', '#d1d5db']);
 
+                        // Impact sparks at collision point
+                        const impactAngle = Math.atan2(asteroid.y - bullets[bIndex].y, asteroid.x - bullets[bIndex].x);
+                        createImpactSparks(bullets[bIndex].x, bullets[bIndex].y, impactAngle, 8);
+
                         // Play sound
                         playSound(`asteroid${asteroid.size.charAt(0).toUpperCase() + asteroid.size.slice(1)}`);
 
@@ -1212,6 +1334,7 @@
                         createExplosion(ufo.x, ufo.y, 40, ['#ff3366', '#ff9933', '#00ff41'], 1.5);
                         playSound('ufoDestroy');
                         addScreenShake(5, 0.25);
+                        addBorderGlow('#ff3366', 1.5, 0.8);
 
                         // Maybe drop powerup
                         if (Math.random() < selectedDifficulty.powerupChance) {
@@ -1370,6 +1493,12 @@
                 comboMultiplier = Math.min(10, comboCount);
                 playSound('combo');
                 addFlash(comboMultiplier > 5 ? '#ff00ff' : '#00ffff', 0.2);
+
+                // Border glow for high combos
+                if (comboMultiplier >= 5) {
+                    const glowColor = comboMultiplier <= 7 ? '#ff00ff' : '#ff0000';
+                    addBorderGlow(glowColor, comboMultiplier / 5, 0.4);
+                }
             } else {
                 comboCount = 1;
                 comboMultiplier = 1;
@@ -1418,6 +1547,9 @@
                 gameState = GAME_STATE.WAVE_TRANSITION;
                 waveTransitionTimer = 3;
                 waveTransitionMessage = `WAVE ${wave} COMPLETE!\n+${waveBonus} BONUS`;
+
+                // Border glow for wave completion
+                addBorderGlow('#00ff41', 2, 1);
 
                 setTimeout(() => {
                     wave++;
@@ -1610,7 +1742,19 @@
             // Update effects
             updateScreenShake(dt);
             updateFlash(dt);
+            updateBorderGlow(dt);
             updateShootingStars();
+
+            // Update impact sparks
+            impactSparks = impactSparks.filter(spark => {
+                spark.update(dt);
+                return spark.life > 0;
+            });
+
+            // Update mute indicator fade
+            if (muteIndicatorAlpha > 0) {
+                muteIndicatorAlpha -= dt * 2;
+            }
         }
 
         // ============================================================
@@ -1633,6 +1777,9 @@
             if (gameState === GAME_STATE.PLAYING || gameState === GAME_STATE.PAUSED || gameState === GAME_STATE.WAVE_TRANSITION) {
                 // Draw particles first
                 particles.forEach(particle => particle.draw());
+
+                // Draw impact sparks
+                impactSparks.forEach(spark => spark.draw());
 
                 // Draw asteroids
                 asteroids.forEach(asteroid => asteroid.draw());
@@ -1674,6 +1821,31 @@
                 ctx.globalAlpha = flashEffect.alpha;
                 ctx.fillRect(0, 0, canvas.width, canvas.height);
                 ctx.globalAlpha = 1;
+            }
+
+            // Border glow effect
+            if (borderGlow.active && borderGlow.duration > 0) {
+                const alpha = Math.min(0.8, borderGlow.intensity * (borderGlow.duration / 0.5));
+                ctx.strokeStyle = borderGlow.color;
+                ctx.lineWidth = 8;
+                ctx.shadowBlur = 30;
+                ctx.shadowColor = borderGlow.color;
+                ctx.globalAlpha = alpha;
+                ctx.strokeRect(4, 4, canvas.width - 8, canvas.height - 8);
+                ctx.globalAlpha = 1;
+            }
+
+            // Mute indicator
+            if (muteIndicatorAlpha > 0) {
+                ctx.save();
+                ctx.globalAlpha = muteIndicatorAlpha;
+                ctx.font = 'bold 24px Courier New';
+                ctx.fillStyle = muted ? '#ff0000' : '#00ff41';
+                ctx.textAlign = 'right';
+                ctx.shadowBlur = 10;
+                ctx.shadowColor = muted ? '#ff0000' : '#00ff41';
+                ctx.fillText(muted ? '🔇 MUTED' : '🔊 SOUND ON', canvas.width - 20, 40);
+                ctx.restore();
             }
 
             // UI screens
@@ -2045,6 +2217,7 @@
             // Mute toggle
             if (e.key === 'm' || e.key === 'M') {
                 muted = !muted;
+                muteIndicatorAlpha = 1;
             }
         });
 
