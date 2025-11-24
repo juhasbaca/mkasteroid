@@ -108,7 +108,8 @@
             PLAYING: 'playing',
             PAUSED: 'paused',
             GAME_OVER: 'gameOver',
-            WAVE_TRANSITION: 'waveTransition'
+            WAVE_TRANSITION: 'waveTransition',
+            HELP: 'help'
         };
 
         // Difficulty settings
@@ -148,6 +149,7 @@
         // ============================================================
 
         let gameState = GAME_STATE.START;
+        let previousGameState = GAME_STATE.START;
         let selectedDifficulty = DIFFICULTY.MEDIUM;
         let score = 0;
         let highScore = parseInt(localStorage.getItem('asteroidsHighScore')) || 0;
@@ -1857,6 +1859,8 @@
                 drawGameOverScreen();
             } else if (gameState === GAME_STATE.WAVE_TRANSITION) {
                 drawWaveTransition();
+            } else if (gameState === GAME_STATE.HELP) {
+                drawHelpScreen();
             }
         }
 
@@ -2132,6 +2136,162 @@
             ctx.shadowBlur = 0;
         }
 
+        function drawHelpScreen() {
+            // Semi-transparent overlay
+            ctx.fillStyle = 'rgba(10, 14, 39, 0.95)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Title
+            ctx.font = 'bold 48px Courier New';
+            ctx.fillStyle = '#00ff41';
+            ctx.textAlign = 'center';
+            ctx.shadowBlur = 20;
+            ctx.shadowColor = '#00ff41';
+            ctx.fillText('HELP', canvas.width / 2, 80);
+
+            // Sections
+            const leftCol = canvas.width / 2 - 280;
+            const rightCol = canvas.width / 2 + 20;
+            let y = 140;
+
+            // Controls section
+            ctx.font = 'bold 24px Courier New';
+            ctx.fillStyle = '#ff006e';
+            ctx.shadowBlur = 10;
+            ctx.shadowColor = '#ff006e';
+            ctx.textAlign = 'left';
+            ctx.fillText('CONTROLS', leftCol, y);
+
+            ctx.font = '18px Courier New';
+            ctx.fillStyle = '#ffffff';
+            ctx.shadowBlur = 5;
+            y += 30;
+            ctx.fillText('← →  : Rotate ship', leftCol, y);
+            y += 25;
+            ctx.fillText('↑    : Thrust', leftCol, y);
+            y += 25;
+            ctx.fillText('SPACE: Shoot', leftCol, y);
+            y += 25;
+            ctx.fillText('P    : Pause', leftCol, y);
+            y += 25;
+            ctx.fillText('M    : Mute', leftCol, y);
+            y += 25;
+            ctx.fillText('H    : Help', leftCol, y);
+
+            // How to Play section
+            y = 140;
+            ctx.font = 'bold 24px Courier New';
+            ctx.fillStyle = '#ff006e';
+            ctx.shadowBlur = 10;
+            ctx.shadowColor = '#ff006e';
+            ctx.fillText('HOW TO PLAY', rightCol, y);
+
+            ctx.font = '16px Courier New';
+            ctx.fillStyle = '#ffffff';
+            ctx.shadowBlur = 5;
+            y += 30;
+            ctx.fillText('• Destroy asteroids to earn points', rightCol, y);
+            y += 22;
+            ctx.fillText('• Watch for UFOs - they drop power-ups!', rightCol, y);
+            y += 22;
+            ctx.fillText('• Build combos (kill within 3s)', rightCol, y);
+            y += 22;
+            ctx.fillText('• Complete waves for bonuses', rightCol, y);
+            y += 22;
+            ctx.fillText('• Your ship wraps around the screen', rightCol, y);
+            y += 22;
+            ctx.fillText('• 3 lives per game', rightCol, y);
+
+            // Power-ups section
+            y += 50;
+            ctx.font = 'bold 24px Courier New';
+            ctx.fillStyle = '#ff006e';
+            ctx.shadowBlur = 10;
+            ctx.shadowColor = '#ff006e';
+            ctx.textAlign = 'left';
+            ctx.fillText('POWER-UPS', leftCol, y);
+
+            ctx.font = '18px Courier New';
+            y += 30;
+            ctx.fillStyle = '#3b82f6';
+            ctx.shadowColor = '#3b82f6';
+            ctx.fillText('🛡️  Shield', leftCol, y);
+            ctx.fillStyle = '#ffffff';
+            ctx.shadowBlur = 5;
+            ctx.fillText(' - Absorbs one hit', leftCol + 100, y);
+
+            y += 25;
+            ctx.fillStyle = '#f97316';
+            ctx.shadowColor = '#f97316';
+            ctx.shadowBlur = 10;
+            ctx.fillText('🔫 Triple Shot', leftCol, y);
+            ctx.fillStyle = '#ffffff';
+            ctx.shadowBlur = 5;
+            ctx.fillText(' - Fire 3 bullets (10s)', leftCol + 150, y);
+
+            y += 25;
+            ctx.fillStyle = '#fbbf24';
+            ctx.shadowColor = '#fbbf24';
+            ctx.shadowBlur = 10;
+            ctx.fillText('⚡ Rapid Fire', leftCol, y);
+            ctx.fillStyle = '#ffffff';
+            ctx.shadowBlur = 5;
+            ctx.fillText(' - Faster shooting (10s)', leftCol + 150, y);
+
+            // Scoring section
+            y += 50;
+            ctx.font = 'bold 24px Courier New';
+            ctx.fillStyle = '#ff006e';
+            ctx.shadowColor = '#ff006e';
+            ctx.shadowBlur = 10;
+            ctx.fillText('SCORING', rightCol, y);
+
+            ctx.font = '18px Courier New';
+            ctx.fillStyle = '#ffffff';
+            ctx.shadowBlur = 5;
+            y += 30;
+            ctx.fillText('Large asteroid:  20 pts', rightCol, y);
+            y += 25;
+            ctx.fillText('Medium asteroid: 50 pts', rightCol, y);
+            y += 25;
+            ctx.fillText('Small asteroid:  100 pts', rightCol, y);
+            y += 25;
+            ctx.fillText('Large UFO:       100 pts', rightCol, y);
+            y += 25;
+            ctx.fillText('Small UFO:       200 pts', rightCol, y);
+            y += 25;
+            ctx.fillText('Wave bonus:      Wave × 500', rightCol, y);
+            y += 25;
+            ctx.fillText('Combo multiplier: Up to 10x!', rightCol, y);
+
+            // Tips section
+            y += 50;
+            ctx.font = 'bold 24px Courier New';
+            ctx.fillStyle = '#ff006e';
+            ctx.shadowColor = '#ff006e';
+            ctx.shadowBlur = 10;
+            ctx.textAlign = 'center';
+            ctx.fillText('TIPS FOR HIGH SCORES', canvas.width / 2, y);
+
+            ctx.font = '16px Courier New';
+            ctx.fillStyle = '#00ffff';
+            ctx.shadowColor = '#00ffff';
+            ctx.shadowBlur = 5;
+            y += 30;
+            ctx.fillText('Master the combo system • Prioritize UFOs • Use power-ups strategically', canvas.width / 2, y);
+            y += 20;
+            ctx.fillText('Break large asteroids early • Keep moving • Practice makes perfect!', canvas.width / 2, y);
+
+            // Footer
+            ctx.font = '20px Courier New';
+            ctx.fillStyle = '#7209b7';
+            ctx.shadowBlur = 10;
+            ctx.shadowColor = '#7209b7';
+            ctx.fillText('Press ESC to return', canvas.width / 2, canvas.height - 30);
+
+            ctx.shadowBlur = 0;
+        }
+
         function drawWaveTransition() {
             ctx.fillStyle = 'rgba(10, 14, 39, 0.7)';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -2158,7 +2318,7 @@
             keys[e.key] = true;
 
             // Prevent default for game keys
-            if (['ArrowLeft', 'ArrowRight', 'ArrowUp', ' ', 'p', 'P', 'Escape', 'Enter', 'm', 'M'].includes(e.key)) {
+            if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', ' ', 'p', 'P', 'Escape', 'Enter', 'm', 'M', 'h', 'H'].includes(e.key)) {
                 e.preventDefault();
             }
 
@@ -2211,6 +2371,22 @@
                     initGame();
                 } else if (e.key === 'Escape') {
                     gameState = GAME_STATE.START;
+                }
+            }
+            // Help screen
+            else if (gameState === GAME_STATE.HELP) {
+                if (e.key === 'Escape') {
+                    gameState = previousGameState;
+                }
+            }
+
+            // Help toggle (H key) - works from playing, paused, or game over
+            if ((e.key === 'h' || e.key === 'H') && gameState !== GAME_STATE.START && gameState !== GAME_STATE.WAVE_TRANSITION) {
+                if (gameState === GAME_STATE.HELP) {
+                    gameState = previousGameState;
+                } else {
+                    previousGameState = gameState;
+                    gameState = GAME_STATE.HELP;
                 }
             }
 
