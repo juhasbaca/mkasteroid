@@ -1,5 +1,7 @@
 # 🚀 ASTEROIDS - Retro Space Shooter
 
+**Version: 1.1.0**
+
 A modern recreation of the classic Asteroids arcade game with stunning visual effects, power-ups, and multiple difficulty levels. Built with vanilla JavaScript and HTML5 Canvas.
 
 ## ✨ Features
@@ -207,6 +209,25 @@ This is a portfolio project. Feel free to learn from the code, but please provid
 - Achievements system
 - Mobile touch controls
 - Multiplayer mode
+
+## 📋 Changelog
+
+### v1.1.0 (Current)
+- ⚡ **Performance optimizations** - Removed expensive shadowBlur effects from frequently drawn objects
+- 🎯 **Improved rendering** - Cached time calculations for better frame rate
+- 🔧 **Reduced particle creation** - Optimized thrust particles (30% spawn rate)
+- 📊 **Version display** - Added version number to start and help screens
+- 🏆 **Stable performance** - Game maintains smooth FPS during long play sessions
+
+### v1.0.0
+- 🎮 Initial release with core gameplay
+- 🐛 Fixed critical collision detection bugs causing game freezes
+- 🎨 Added 7 visual improvements (combo indicators, impact sparks, border glow, etc.)
+- 📖 Added comprehensive in-game help screen (H key)
+- 🚀 Arrow key navigation for difficulty selection
+- 🎨 Redesigned ship with detailed graphics
+- 🔗 Added social media links
+- 💾 High score tracking with localStorage
 
 ---
 

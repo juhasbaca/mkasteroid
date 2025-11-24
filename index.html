@@ -102,6 +102,9 @@
         canvas.width = Math.min(window.innerWidth - 20, 1200);
         canvas.height = Math.min(window.innerHeight - 20, 800);
 
+        // Game version
+        const VERSION = 'v1.1.0';
+
         // Game states
         const GAME_STATE = {
             START: 'start',
@@ -2033,6 +2036,13 @@
             ctx.fillText('P    : Pause', controlsX, 635);
             ctx.fillText('M    : Mute', controlsX, 660);
 
+            // Version number
+            ctx.font = '14px Courier New';
+            ctx.fillStyle = '#6b7280';
+            ctx.textAlign = 'right';
+            ctx.shadowBlur = 0;
+            ctx.fillText(VERSION, canvas.width - 20, canvas.height - 20);
+
             ctx.shadowBlur = 0;
         }
 
@@ -2281,6 +2291,13 @@
             ctx.shadowBlur = 10;
             ctx.shadowColor = '#7209b7';
             ctx.fillText('Press ESC to return', canvas.width / 2, canvas.height - 30);
+
+            // Version number
+            ctx.font = '14px Courier New';
+            ctx.fillStyle = '#6b7280';
+            ctx.textAlign = 'right';
+            ctx.shadowBlur = 0;
+            ctx.fillText(VERSION, canvas.width - 20, canvas.height - 20);
 
             ctx.shadowBlur = 0;
         }
