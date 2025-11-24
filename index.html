@@ -16,9 +16,11 @@
             font-family: 'Courier New', monospace;
             overflow: hidden;
             display: flex;
+            flex-direction: column;
             justify-content: center;
             align-items: center;
             height: 100vh;
+            position: relative;
         }
 
         #gameCanvas {
@@ -45,10 +47,48 @@
             from { transform: translateY(20px); opacity: 0; }
             to { transform: translateY(0); opacity: 1; }
         }
+
+        .social-links {
+            position: fixed;
+            bottom: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            text-align: center;
+            font-size: 14px;
+            color: #8b8b8b;
+            z-index: 100;
+        }
+
+        .social-links a {
+            color: #00ff41;
+            text-decoration: none;
+            margin: 0 8px;
+            transition: all 0.3s ease;
+            text-shadow: 0 0 5px rgba(0, 255, 65, 0.5);
+        }
+
+        .social-links a:hover {
+            color: #00d9ff;
+            text-shadow: 0 0 10px rgba(0, 217, 255, 0.8);
+            transform: scale(1.1);
+        }
+
+        .social-links .divider {
+            color: #8b8b8b;
+            margin: 0 5px;
+        }
     </style>
 </head>
 <body>
     <canvas id="gameCanvas"></canvas>
+
+    <div class="social-links">
+        © Marcin Krupiński
+        <span class="divider">•</span>
+        <a href="https://www.tiktok.com/@ai.marcin" target="_blank" rel="noopener">TikTok</a>
+        <span class="divider">•</span>
+        <a href="https://www.instagram.com/krupinskiai" target="_blank" rel="noopener">Instagram</a>
+    </div>
 
     <script>
         // ============================================================
@@ -1824,13 +1864,6 @@
             ctx.fillText('P    : Pause', controlsX, 635);
             ctx.fillText('M    : Mute', controlsX, 660);
 
-            // Credits
-            ctx.font = '14px Courier New';
-            ctx.fillStyle = '#8b8b8b';
-            ctx.textAlign = 'center';
-            ctx.shadowBlur = 5;
-            ctx.fillText('© Marcin Krupiński • tiktok.com/@ai.marcin', canvas.width / 2, canvas.height - 20);
-
             ctx.shadowBlur = 0;
         }
 
@@ -1923,13 +1956,6 @@
             ctx.shadowBlur = 10;
             ctx.shadowColor = '#7209b7';
             ctx.fillText('Press ESC for Main Menu', canvas.width / 2, statsY + 190);
-
-            // Credits
-            ctx.font = '14px Courier New';
-            ctx.fillStyle = '#8b8b8b';
-            ctx.textAlign = 'center';
-            ctx.shadowBlur = 5;
-            ctx.fillText('© Marcin Krupiński • tiktok.com/@ai.marcin', canvas.width / 2, canvas.height - 20);
 
             ctx.shadowBlur = 0;
         }
