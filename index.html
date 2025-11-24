@@ -630,8 +630,11 @@
                 this.y += this.vy * dt * 60;
                 this.life -= dt;
 
-                this.x = wrap(this.x, 0, canvas.width);
-                this.y = wrap(this.y, 0, canvas.height);
+                // Remove bullet if it goes off-screen
+                if (this.x < -10 || this.x > canvas.width + 10 ||
+                    this.y < -10 || this.y > canvas.height + 10) {
+                    this.life = 0;
+                }
             }
 
             draw() {
@@ -1357,6 +1360,13 @@
                     bullet.x += bullet.vx * dt * 60;
                     bullet.y += bullet.vy * dt * 60;
                     bullet.life -= dt;
+
+                    // Remove bullet if it goes off-screen
+                    if (bullet.x < -10 || bullet.x > canvas.width + 10 ||
+                        bullet.y < -10 || bullet.y > canvas.height + 10) {
+                        return false;
+                    }
+
                     return bullet.life > 0;
                 });
 
