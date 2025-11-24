@@ -196,6 +196,7 @@
         let borderGlow = { active: false, color: '#ffffff', intensity: 0, duration: 0 };
         let muteIndicatorAlpha = 0;
         let impactSparks = [];
+        let currentTime = 0; // Cached time for animations (performance optimization)
 
         // Timers
         let ufoSpawnTimer = 0;
@@ -493,8 +494,6 @@
                 ctx.save();
                 ctx.globalAlpha = alpha;
                 ctx.fillStyle = this.color;
-                ctx.shadowBlur = 5;
-                ctx.shadowColor = this.color;
                 ctx.beginPath();
                 ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
                 ctx.fill();
@@ -581,8 +580,8 @@
                     this.vy += Math.sin(this.angle) * acceleration;
                     this.thrustFrame = (this.thrustFrame + 0.2) % 3;
 
-                    // Enhanced thrust particles with more variety
-                    if (Math.random() < 0.5) {
+                    // Enhanced thrust particles with more variety (reduced rate for performance)
+                    if (Math.random() < 0.3) {
                         const tailX = this.x - Math.cos(this.angle) * 20;
                         const tailY = this.y - Math.sin(this.angle) * 20;
                         const angleSpread = random(-0.3, 0.3);
@@ -632,7 +631,7 @@
 
                 // Flash when invulnerable
                 if (this.invulnerable) {
-                    ctx.globalAlpha = Math.sin(Date.now() / 100) * 0.5 + 0.5;
+                    ctx.globalAlpha = Math.sin(currentTime / 100) * 0.5 + 0.5;
                 }
 
                 // Shield effect
@@ -641,7 +640,7 @@
                     ctx.lineWidth = 3;
                     ctx.shadowBlur = 15;
                     ctx.shadowColor = '#3b82f6';
-                    const shieldRotation = Date.now() / 500;
+                    const shieldRotation = currentTime / 500;
                     for (let i = 0; i < 6; i++) {
                         const angle = (i / 6) * Math.PI * 2 + shieldRotation;
                         const x1 = Math.cos(angle) * 25;
@@ -744,7 +743,7 @@
                 }
 
                 // Shoot cooldown indicator - flash when ready
-                if (this.shootCooldown <= 0 && Date.now() % 1000 < 500) {
+                if (this.shootCooldown <= 0 && currentTime % 1000 < 500) {
                     ctx.strokeStyle = '#00d9ff';
                     ctx.lineWidth = 2;
                     ctx.shadowBlur = 8;
@@ -765,7 +764,7 @@
                     ctx.textAlign = 'center';
                     ctx.shadowBlur = 15;
                     ctx.shadowColor = comboColor;
-                    const pulse = Math.sin(Date.now() / 100) * 0.2 + 1;
+                    const pulse = Math.sin(currentTime / 100) * 0.2 + 1;
                     ctx.globalAlpha = pulse * 0.8;
                     ctx.fillText(`×${comboMultiplier}`, 0, -30);
                     ctx.globalAlpha = 1;
@@ -840,8 +839,6 @@
                 // Trail
                 ctx.strokeStyle = '#00d9ff';
                 ctx.lineWidth = 2;
-                ctx.shadowBlur = 8;
-                ctx.shadowColor = '#00d9ff';
                 ctx.beginPath();
                 this.trail.forEach((point, i) => {
                     ctx.globalAlpha = i / this.trail.length * 0.5;
@@ -906,8 +903,6 @@
 
                 ctx.strokeStyle = '#6b7280';
                 ctx.lineWidth = 2;
-                ctx.shadowBlur = 5;
-                ctx.shadowColor = '#6b7280';
 
                 ctx.beginPath();
                 this.points.forEach((point, i) => {
@@ -1122,7 +1117,7 @@
                 const color = colors[this.type];
 
                 // Spawn animation
-                const spawnAge = (Date.now() - this.spawnTime) / 1000;
+                const spawnAge = (currentTime - this.spawnTime) / 1000;
                 const spawnProgress = Math.min(1, spawnAge / 0.5);
                 const spawnScale = spawnProgress;
                 const spawnAlpha = spawnProgress;
@@ -1212,7 +1207,7 @@
         function drawBackground() {
             // Draw stars
             stars.forEach(star => {
-                const twinkle = Math.sin(Date.now() / 1000 * star.twinkleSpeed) * 0.3 + 0.7;
+                const twinkle = Math.sin(currentTime / 1000 * star.twinkleSpeed) * 0.3 + 0.7;
                 ctx.fillStyle = `rgba(255, 255, 255, ${star.brightness * twinkle})`;
                 ctx.beginPath();
                 ctx.arc(star.x, star.y, star.radius, 0, Math.PI * 2);
@@ -1242,7 +1237,7 @@
         }
 
         function updateShootingStars() {
-            if (Date.now() > nextShootingStarTime) {
+            if (currentTime > nextShootingStarTime) {
                 const edge = randomInt(0, 1);
                 const x = edge === 0 ? random(0, canvas.width) : 0;
                 const y = edge === 0 ? 0 : random(0, canvas.height);
@@ -1257,7 +1252,7 @@
                     alpha: 1
                 });
 
-                nextShootingStarTime = Date.now() + random(10000, 20000);
+                nextShootingStarTime = currentTime + random(10000, 20000);
             }
         }
 
@@ -1488,7 +1483,7 @@
         // ============================================================
 
         function updateCombo() {
-            const now = Date.now();
+            const now = currentTime;
 
             if (now - lastKillTime < 3000) {
                 comboCount++;
@@ -1791,8 +1786,6 @@
 
                 // Draw UFO bullets
                 ctx.fillStyle = '#ff0033';
-                ctx.shadowBlur = 8;
-                ctx.shadowColor = '#ff0033';
                 ufoBullets.forEach(bullet => {
                     ctx.beginPath();
                     ctx.arc(bullet.x, bullet.y, bullet.radius, 0, Math.PI * 2);
@@ -2411,6 +2404,7 @@
             try {
                 const dt = Math.min((timestamp - lastTime) / 1000, 0.1);
                 lastTime = timestamp;
+                currentTime = Date.now(); // Cache time once per frame for animations
 
                 update(dt);
                 draw();
@@ -2427,7 +2421,7 @@
         // ============================================================
 
         initStars();
-        nextShootingStarTime = Date.now() + random(5000, 10000);
+        nextShootingStarTime = currentTime + random(5000, 10000);
         requestAnimationFrame(gameLoop);
     </script>
 </body>
