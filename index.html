@@ -348,7 +348,12 @@
         }
 
         function createExplosion(x, y, count, colors, speedMult = 1) {
-            for (let i = 0; i < count; i++) {
+            // Limit total particles to prevent memory issues
+            const MAX_PARTICLES = 500;
+            const availableSlots = MAX_PARTICLES - particles.length;
+            const actualCount = Math.min(count, availableSlots);
+
+            for (let i = 0; i < actualCount; i++) {
                 const angle = random(0, Math.PI * 2);
                 const speed = random(1, 4) * speedMult;
                 const color = colors[randomInt(0, colors.length - 1)];
@@ -1046,12 +1051,23 @@
         }
 
         function handleCollisions() {
+            const bulletsToRemove = new Set();
+            const asteroidsToRemove = new Set();
+            const newAsteroidsToAdd = [];
+            const ufoBulletsToRemove = new Set();
+            const powerupsToRemove = new Set();
+
             // Bullets vs Asteroids
-            bullets.forEach((bullet, bIndex) => {
-                asteroids.forEach((asteroid, aIndex) => {
-                    if (checkCollision(bullet, asteroid)) {
+            for (let bIndex = 0; bIndex < bullets.length; bIndex++) {
+                if (bulletsToRemove.has(bIndex)) continue;
+
+                for (let aIndex = 0; aIndex < asteroids.length; aIndex++) {
+                    if (asteroidsToRemove.has(aIndex)) continue;
+
+                    if (checkCollision(bullets[bIndex], asteroids[aIndex])) {
                         // Hit!
                         shotsHit++;
+                        const asteroid = asteroids[aIndex];
                         const points = asteroid.getPoints() * comboMultiplier;
                         score += points;
                         addScorePopup(asteroid.x, asteroid.y, points);
@@ -1069,21 +1085,24 @@
 
                         // Split asteroid
                         const newAsteroids = asteroid.split();
-                        asteroids.push(...newAsteroids);
+                        newAsteroidsToAdd.push(...newAsteroids);
 
-                        // Remove
-                        asteroids.splice(aIndex, 1);
-                        bullets.splice(bIndex, 1);
+                        // Mark for removal
+                        asteroidsToRemove.add(aIndex);
+                        bulletsToRemove.add(bIndex);
 
                         asteroidsDestroyed++;
+                        break; // Bullet can only hit one asteroid
                     }
-                });
-            });
+                }
+            }
 
             // Bullets vs UFO
             if (ufo) {
-                bullets.forEach((bullet, bIndex) => {
-                    if (checkCollision(bullet, ufo)) {
+                for (let bIndex = 0; bIndex < bullets.length; bIndex++) {
+                    if (bulletsToRemove.has(bIndex)) continue;
+
+                    if (checkCollision(bullets[bIndex], ufo)) {
                         shotsHit++;
                         const points = ufo.getPoints() * comboMultiplier;
                         score += points;
@@ -1102,20 +1121,22 @@
                             powerups.push(new Powerup(ufo.x, ufo.y, type));
                         }
 
-                        bullets.splice(bIndex, 1);
+                        bulletsToRemove.add(bIndex);
                         ufo = null;
                         ufosDestroyed++;
+                        break;
                     }
-                });
+                }
             }
 
             // Ship vs Asteroids
             if (ship && !ship.invulnerable) {
-                asteroids.forEach(asteroid => {
-                    if (checkCollision(ship, asteroid)) {
+                for (let aIndex = 0; aIndex < asteroids.length; aIndex++) {
+                    if (checkCollision(ship, asteroids[aIndex])) {
                         handleShipHit();
+                        break; // Only process one collision per frame
                     }
-                });
+                }
             }
 
             // Ship vs UFO
@@ -1127,17 +1148,19 @@
 
             // Ship vs UFO bullets
             if (ship && !ship.invulnerable) {
-                ufoBullets.forEach((bullet, index) => {
-                    if (checkCollision(ship, bullet)) {
+                for (let index = 0; index < ufoBullets.length; index++) {
+                    if (checkCollision(ship, ufoBullets[index])) {
                         handleShipHit();
-                        ufoBullets.splice(index, 1);
+                        ufoBulletsToRemove.add(index);
+                        break; // Only process one collision per frame
                     }
-                });
+                }
             }
 
             // Ship vs Powerups
             if (ship) {
-                powerups.forEach((powerup, index) => {
+                for (let index = 0; index < powerups.length; index++) {
+                    const powerup = powerups[index];
                     if (checkCollision(ship, powerup)) {
                         playSound('powerup');
                         addFlash(powerup.type === 'shield' ? '#3b82f6' : powerup.type === 'tripleShot' ? '#f97316' : '#fbbf24', 0.3);
@@ -1155,10 +1178,26 @@
                             activePowerups.rapidFire.timer = 10;
                         }
 
-                        powerups.splice(index, 1);
+                        powerupsToRemove.add(index);
                     }
-                });
+                }
             }
+
+            // Remove marked items (iterate backwards to maintain correct indices)
+            const bulletIndices = Array.from(bulletsToRemove).sort((a, b) => b - a);
+            bulletIndices.forEach(index => bullets.splice(index, 1));
+
+            const asteroidIndices = Array.from(asteroidsToRemove).sort((a, b) => b - a);
+            asteroidIndices.forEach(index => asteroids.splice(index, 1));
+
+            const ufoBulletIndices = Array.from(ufoBulletsToRemove).sort((a, b) => b - a);
+            ufoBulletIndices.forEach(index => ufoBullets.splice(index, 1));
+
+            const powerupIndices = Array.from(powerupsToRemove).sort((a, b) => b - a);
+            powerupIndices.forEach(index => powerups.splice(index, 1));
+
+            // Add new asteroids after all removal is done
+            asteroids.push(...newAsteroidsToAdd);
         }
 
         function handleShipHit() {
@@ -1195,23 +1234,28 @@
             }
         }
 
-        function respawnShip() {
+        function respawnShip(attempts = 0) {
+            // Prevent infinite recursion - after 20 attempts (10 seconds), force spawn
+            const MAX_ATTEMPTS = 20;
+
             // Check if spawn area is clear
             const spawnX = canvas.width / 2;
             const spawnY = canvas.height / 2;
             const clearRadius = 100;
 
             let canSpawn = true;
-            asteroids.forEach(asteroid => {
-                if (distance(spawnX, spawnY, asteroid.x, asteroid.y) < clearRadius + asteroid.radius) {
-                    canSpawn = false;
-                }
-            });
+            if (attempts < MAX_ATTEMPTS) {
+                asteroids.forEach(asteroid => {
+                    if (distance(spawnX, spawnY, asteroid.x, asteroid.y) < clearRadius + asteroid.radius) {
+                        canSpawn = false;
+                    }
+                });
+            }
 
-            if (canSpawn) {
+            if (canSpawn || attempts >= MAX_ATTEMPTS) {
                 ship = new Ship();
             } else {
-                setTimeout(respawnShip, 500);
+                setTimeout(() => respawnShip(attempts + 1), 500);
             }
         }
 
