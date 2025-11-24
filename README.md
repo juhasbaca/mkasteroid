@@ -180,7 +180,7 @@ mkasteroid/
 
 ## 👨‍💻 Credits
 
-Created by **Marcin Krupiński**
+Created using **Claude Code (vibe coding)** by **Marcin Krupiński**
 
 - [TikTok](https://www.tiktok.com/@ai.marcin)
 - [Instagram](https://www.instagram.com/krupinskiai)
