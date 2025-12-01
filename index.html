@@ -27,6 +27,25 @@
             border: 2px solid #7209b7;
             box-shadow: 0 0 20px rgba(114, 9, 183, 0.5);
             display: block;
+            max-width: 100%;
+            max-height: 100vh;
+            width: auto;
+            height: auto;
+        }
+
+        /* Mobile-specific adjustments */
+        @media (max-width: 768px) {
+            #gameCanvas {
+                max-width: 100vw;
+                max-height: 100vh;
+                width: 100vw !important;
+                height: auto !important;
+            }
+
+            body {
+                overflow: hidden;
+                touch-action: none;
+            }
         }
 
         .pulse {
@@ -112,7 +131,7 @@
         const BG_UPDATE_INTERVAL = 2; // Update background every 2 seconds for star twinkle
 
         // Game version
-        const VERSION = 'v1.1.0';
+        const VERSION = 'v1.2.0';
 
         // Performance limits
         const MAX_ASTEROIDS = 40; // Aggressive optimization: limit total asteroids
@@ -209,6 +228,10 @@
         let mouseY = 0;
         let mouseDown = false;
         let useMouseControls = false; // Toggle with 'C' key
+        let touchX = 0;
+        let touchY = 0;
+        let touching = false;
+        let isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 
         // Audio context
         let audioContext = null;
@@ -232,6 +255,7 @@
         let flashEffect = { active: false, color: '#ffffff', alpha: 0 };
         let borderGlow = { active: false, color: '#ffffff', intensity: 0, duration: 0 };
         let muteIndicatorAlpha = 0;
+        let controlModeIndicatorAlpha = 0;
         let impactSparks = [];
         let currentTime = 0; // Cached time for animations (performance optimization)
 
@@ -660,35 +684,77 @@
             }
 
             update(dt) {
-                // Rotation
-                const turnSpeed = (selectedDifficulty.shipTurnSpeed || 1) * 5 * (Math.PI / 180);
-                if (keys.ArrowLeft) this.angle -= turnSpeed;
-                if (keys.ArrowRight) this.angle += turnSpeed;
+                // Mouse/Touch controls
+                if (useMouseControls || touching) {
+                    // Use touch coordinates if touching, otherwise mouse
+                    const targetX = touching ? touchX : mouseX;
+                    const targetY = touching ? touchY : mouseY;
 
-                // Thrust
-                this.thrust = keys.ArrowUp;
-                if (this.thrust) {
+                    // Calculate angle to mouse/touch position
+                    const dx = targetX - this.x;
+                    const dy = targetY - this.y;
+                    const targetAngle = Math.atan2(dy, dx);
+
+                    // Smoothly rotate toward target
+                    let angleDiff = targetAngle - this.angle;
+                    // Normalize angle difference to -PI to PI
+                    while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
+                    while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
+
+                    // Apply rotation (faster turn for mouse)
+                    const turnSpeed = 0.15;
+                    if (Math.abs(angleDiff) > 0.1) {
+                        this.angle += angleDiff * turnSpeed;
+                    }
+
+                    // Auto-thrust toward mouse (with dead zone)
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+                    this.thrust = distance > 50; // 50px dead zone
+
+                    if (this.thrust) {
+                        const acceleration = 0.3;
+                        this.vx += Math.cos(this.angle) * acceleration;
+                        this.vy += Math.sin(this.angle) * acceleration;
+                        this.thrustFrame = (this.thrustFrame + 0.2) % 3;
+                    }
+
+                    // Shoot on mouse click or touch
+                    if (mouseDown || touching) {
+                        this.shoot();
+                    }
+                } else {
+                    // Keyboard controls
+                    const turnSpeed = (selectedDifficulty.shipTurnSpeed || 1) * 5 * (Math.PI / 180);
+                    if (keys.ArrowLeft) this.angle -= turnSpeed;
+                    if (keys.ArrowRight) this.angle += turnSpeed;
+
+                    // Thrust
+                    this.thrust = keys.ArrowUp;
+                }
+
+                // Apply thrust physics for keyboard mode
+                if (this.thrust && !useMouseControls) {
                     const acceleration = 0.3;
                     this.vx += Math.cos(this.angle) * acceleration;
                     this.vy += Math.sin(this.angle) * acceleration;
                     this.thrustFrame = (this.thrustFrame + 0.2) % 3;
+                }
 
-                    // Enhanced thrust particles with more variety (reduced rate for performance)
-                    if (Math.random() < 0.3) {
-                        const tailX = this.x - Math.cos(this.angle) * 20;
-                        const tailY = this.y - Math.sin(this.angle) * 20;
-                        const angleSpread = random(-0.3, 0.3);
-                        const particleAngle = this.angle + Math.PI + angleSpread;
-                        const speed = random(1, 3);
-                        particlePool.get(
-                            tailX, tailY,
-                            Math.cos(particleAngle) * speed + this.vx * 0.3,
-                            Math.sin(particleAngle) * speed + this.vy * 0.3,
-                            ['#ff9933', '#ff6633', '#ffcc33', '#ffaa00', '#ffffff'][randomInt(0, 4)],
-                            random(2, 5),
-                            random(0.3, 0.7)
-                        );
-                    }
+                // Enhanced thrust particles for both control modes
+                if (this.thrust && Math.random() < 0.3) {
+                    const tailX = this.x - Math.cos(this.angle) * 20;
+                    const tailY = this.y - Math.sin(this.angle) * 20;
+                    const angleSpread = random(-0.3, 0.3);
+                    const particleAngle = this.angle + Math.PI + angleSpread;
+                    const speed = random(1, 3);
+                    particlePool.get(
+                        tailX, tailY,
+                        Math.cos(particleAngle) * speed + this.vx * 0.3,
+                        Math.sin(particleAngle) * speed + this.vy * 0.3,
+                        ['#ff9933', '#ff6633', '#ffcc33', '#ffaa00', '#ffffff'][randomInt(0, 4)],
+                        random(2, 5),
+                        random(0.3, 0.7)
+                    );
                 }
 
                 // Drag
@@ -1995,6 +2061,11 @@
                 muteIndicatorAlpha -= dt * 2;
             }
 
+            // Update control mode indicator fade
+            if (controlModeIndicatorAlpha > 0) {
+                controlModeIndicatorAlpha -= dt;
+            }
+
             // Update achievement popup
             if (achievementPopup && achievementPopup.timer > 0) {
                 achievementPopup.timer -= dt;
@@ -2100,6 +2171,19 @@
                 ctx.shadowBlur = 10;
                 ctx.shadowColor = muted ? '#ff0000' : '#00ff41';
                 ctx.fillText(muted ? '🔇 MUTED' : '🔊 SOUND ON', canvas.width - 20, 40);
+                ctx.restore();
+            }
+
+            // Control mode indicator
+            if (controlModeIndicatorAlpha > 0) {
+                ctx.save();
+                ctx.globalAlpha = Math.min(1, controlModeIndicatorAlpha);
+                ctx.font = 'bold 24px Courier New';
+                ctx.fillStyle = useMouseControls ? '#00ffff' : '#ffaa00';
+                ctx.textAlign = 'right';
+                ctx.shadowBlur = 10;
+                ctx.shadowColor = useMouseControls ? '#00ffff' : '#ffaa00';
+                ctx.fillText(useMouseControls ? '🖱️ MOUSE CONTROL' : '⌨️ KEYBOARD', canvas.width - 20, 70);
                 ctx.restore();
             }
 
@@ -2527,6 +2611,8 @@
             y += 25;
             ctx.fillText('SPACE: Shoot', leftCol, y);
             y += 25;
+            ctx.fillText('C    : Toggle Mouse Control', leftCol, y);
+            y += 25;
             ctx.fillText('P    : Pause', leftCol, y);
             y += 25;
             ctx.fillText('M    : Mute', leftCol, y);
@@ -2761,7 +2847,7 @@
             // Toggle mouse controls with 'C' key
             if ((e.key === 'c' || e.key === 'C') && gameState === GAME_STATE.PLAYING) {
                 useMouseControls = !useMouseControls;
-                muteIndicatorAlpha = 1; // Reuse for showing control mode
+                controlModeIndicatorAlpha = 2; // Show for 2 seconds
             }
         });
 
@@ -2790,6 +2876,38 @@
         canvas.addEventListener('contextmenu', (e) => {
             e.preventDefault(); // Prevent right-click menu
         });
+
+        // Touch controls for mobile
+        canvas.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            if (gameState === GAME_STATE.PLAYING) {
+                const rect = canvas.getBoundingClientRect();
+                const touch = e.touches[0];
+                touchX = touch.clientX - rect.left;
+                touchY = touch.clientY - rect.top;
+                touching = true;
+            }
+        }, { passive: false });
+
+        canvas.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+            if (touching && gameState === GAME_STATE.PLAYING) {
+                const rect = canvas.getBoundingClientRect();
+                const touch = e.touches[0];
+                touchX = touch.clientX - rect.left;
+                touchY = touch.clientY - rect.top;
+            }
+        }, { passive: false });
+
+        canvas.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            touching = false;
+        }, { passive: false });
+
+        // Auto-enable mouse controls on mobile devices
+        if (isMobile) {
+            useMouseControls = true;
+        }
 
         // ============================================================
         // GAME LOOP
