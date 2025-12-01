@@ -117,9 +117,17 @@
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
 
-        // Set canvas size
-        canvas.width = Math.min(window.innerWidth - 20, 1200);
-        canvas.height = Math.min(window.innerHeight - 20, 800);
+        // Set canvas size - responsive for mobile portrait and landscape
+        const isMobilePortrait = window.innerHeight > window.innerWidth;
+        if (isMobilePortrait) {
+            // Portrait mode: use full width, maintain reasonable aspect ratio
+            canvas.width = window.innerWidth;
+            canvas.height = Math.min(window.innerHeight, canvas.width * 1.5); // Max 1.5:1 ratio
+        } else {
+            // Landscape/Desktop: use standard sizing
+            canvas.width = Math.min(window.innerWidth - 20, 1200);
+            canvas.height = Math.min(window.innerHeight - 20, 800);
+        }
 
         // Performance optimization: Background layer for static elements
         const bgCanvas = document.createElement('canvas');
@@ -2858,11 +2866,43 @@
         // Mouse controls
         canvas.addEventListener('mousemove', (e) => {
             const rect = canvas.getBoundingClientRect();
-            mouseX = e.clientX - rect.left;
-            mouseY = e.clientY - rect.top;
+            // Scale mouse coordinates to canvas internal coordinates
+            mouseX = (e.clientX - rect.left) * (canvas.width / rect.width);
+            mouseY = (e.clientY - rect.top) * (canvas.height / rect.height);
         });
 
         canvas.addEventListener('mousedown', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            const canvasX = (e.clientX - rect.left) * (canvas.width / rect.width);
+            const canvasY = (e.clientY - rect.top) * (canvas.height / rect.height);
+
+            // Handle START screen difficulty selection
+            if (gameState === GAME_STATE.START) {
+                const centerX = canvas.width / 2;
+                const buttonWidth = 200;
+                const buttonHeight = 40;
+
+                // Check difficulty buttons (y: 310, 370, 430)
+                const difficulties = [DIFFICULTY.EASY, DIFFICULTY.MEDIUM, DIFFICULTY.HARD];
+                difficulties.forEach((diff, index) => {
+                    const buttonY = 310 + index * 60;
+                    if (canvasX >= centerX - buttonWidth/2 && canvasX <= centerX + buttonWidth/2 &&
+                        canvasY >= buttonY - buttonHeight/2 && canvasY <= buttonY + buttonHeight/2) {
+                        selectedDifficulty = diff;
+                    }
+                });
+
+                // Check START button (y: 500)
+                const startButtonWidth = 400;
+                const startButtonY = 500;
+                if (canvasX >= centerX - startButtonWidth/2 && canvasX <= centerX + startButtonWidth/2 &&
+                    canvasY >= startButtonY - buttonHeight/2 && canvasY <= startButtonY + buttonHeight/2) {
+                    gameState = GAME_STATE.PLAYING;
+                    initGame();
+                }
+            }
+
+            // Handle PLAYING state
             if (useMouseControls && gameState === GAME_STATE.PLAYING) {
                 mouseDown = true;
                 e.preventDefault();
@@ -2880,11 +2920,41 @@
         // Touch controls for mobile
         canvas.addEventListener('touchstart', (e) => {
             e.preventDefault();
+            const rect = canvas.getBoundingClientRect();
+            const touch = e.touches[0];
+            const canvasX = (touch.clientX - rect.left) * (canvas.width / rect.width);
+            const canvasY = (touch.clientY - rect.top) * (canvas.height / rect.height);
+
+            // Handle START screen difficulty selection
+            if (gameState === GAME_STATE.START) {
+                const centerX = canvas.width / 2;
+                const buttonWidth = 200;
+                const buttonHeight = 40;
+
+                // Check difficulty buttons (y: 310, 370, 430)
+                const difficulties = [DIFFICULTY.EASY, DIFFICULTY.MEDIUM, DIFFICULTY.HARD];
+                difficulties.forEach((diff, index) => {
+                    const buttonY = 310 + index * 60;
+                    if (canvasX >= centerX - buttonWidth/2 && canvasX <= centerX + buttonWidth/2 &&
+                        canvasY >= buttonY - buttonHeight/2 && canvasY <= buttonY + buttonHeight/2) {
+                        selectedDifficulty = diff;
+                    }
+                });
+
+                // Check START button (y: 500)
+                const startButtonWidth = 400;
+                const startButtonY = 500;
+                if (canvasX >= centerX - startButtonWidth/2 && canvasX <= centerX + startButtonWidth/2 &&
+                    canvasY >= startButtonY - buttonHeight/2 && canvasY <= startButtonY + buttonHeight/2) {
+                    gameState = GAME_STATE.PLAYING;
+                    initGame();
+                }
+            }
+
+            // Handle PLAYING state
             if (gameState === GAME_STATE.PLAYING) {
-                const rect = canvas.getBoundingClientRect();
-                const touch = e.touches[0];
-                touchX = touch.clientX - rect.left;
-                touchY = touch.clientY - rect.top;
+                touchX = canvasX;
+                touchY = canvasY;
                 touching = true;
             }
         }, { passive: false });
@@ -2894,8 +2964,9 @@
             if (touching && gameState === GAME_STATE.PLAYING) {
                 const rect = canvas.getBoundingClientRect();
                 const touch = e.touches[0];
-                touchX = touch.clientX - rect.left;
-                touchY = touch.clientY - rect.top;
+                // Scale touch coordinates to canvas internal coordinates
+                touchX = (touch.clientX - rect.left) * (canvas.width / rect.width);
+                touchY = (touch.clientY - rect.top) * (canvas.height / rect.height);
             }
         }, { passive: false });
 
