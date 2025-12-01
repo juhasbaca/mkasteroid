@@ -102,6 +102,15 @@
         canvas.width = Math.min(window.innerWidth - 20, 1200);
         canvas.height = Math.min(window.innerHeight - 20, 800);
 
+        // Performance optimization: Background layer for static elements
+        const bgCanvas = document.createElement('canvas');
+        bgCanvas.width = canvas.width;
+        bgCanvas.height = canvas.height;
+        const bgCtx = bgCanvas.getContext('2d');
+        let bgNeedsRedraw = true;
+        let bgUpdateTimer = 0;
+        const BG_UPDATE_INTERVAL = 2; // Update background every 2 seconds for star twinkle
+
         // Game version
         const VERSION = 'v1.1.0';
 
@@ -388,6 +397,10 @@
 
         class Particle {
             constructor(x, y, vx, vy, color, size, life) {
+                this.reset(x, y, vx, vy, color, size, life);
+            }
+
+            reset(x, y, vx, vy, color, size, life) {
                 this.x = x;
                 this.y = y;
                 this.vx = vx;
@@ -398,6 +411,7 @@
                 this.maxLife = life;
                 this.rotation = random(0, Math.PI * 2);
                 this.rotationSpeed = random(-0.2, 0.2);
+                this.active = true;
             }
 
             update(dt) {
@@ -407,6 +421,7 @@
                 this.rotation += this.rotationSpeed;
                 this.vx *= 0.99;
                 this.vy *= 0.99;
+                if (this.life <= 0) this.active = false;
             }
 
             draw() {
@@ -421,24 +436,50 @@
             }
         }
 
-        function createExplosion(x, y, count, colors, speedMult = 1) {
-            // Limit total particles to prevent memory issues
-            const MAX_PARTICLES = 500;
-            const availableSlots = MAX_PARTICLES - particles.length;
-            const actualCount = Math.min(count, availableSlots);
+        // Performance: Object pool for particles (reduces GC pressure)
+        class ParticlePool {
+            constructor(size) {
+                this.pool = [];
+                for (let i = 0; i < size; i++) {
+                    this.pool.push(new Particle(0, 0, 0, 0, '#fff', 1, 0));
+                }
+                this.pool.forEach(p => p.active = false);
+            }
 
-            for (let i = 0; i < actualCount; i++) {
+            get(x, y, vx, vy, color, size, life) {
+                // Find inactive particle
+                let particle = this.pool.find(p => !p.active);
+                if (particle) {
+                    particle.reset(x, y, vx, vy, color, size, life);
+                    return particle;
+                }
+                // Pool exhausted, create new (shouldn't happen often)
+                particle = new Particle(x, y, vx, vy, color, size, life);
+                this.pool.push(particle);
+                return particle;
+            }
+
+            getActiveParticles() {
+                return this.pool.filter(p => p.active);
+            }
+        }
+
+        const particlePool = new ParticlePool(500);
+
+        function createExplosion(x, y, count, colors, speedMult = 1) {
+            // Performance: Use object pool instead of creating new particles
+            for (let i = 0; i < count; i++) {
                 const angle = random(0, Math.PI * 2);
                 const speed = random(1, 4) * speedMult;
                 const color = colors[randomInt(0, colors.length - 1)];
-                particles.push(new Particle(
+                particlePool.get(
                     x, y,
                     Math.cos(angle) * speed,
                     Math.sin(angle) * speed,
                     color,
                     random(2, 5),
                     random(0.5, 1.5)
-                ));
+                );
             }
         }
 
@@ -636,14 +677,14 @@
                         const angleSpread = random(-0.3, 0.3);
                         const particleAngle = this.angle + Math.PI + angleSpread;
                         const speed = random(1, 3);
-                        particles.push(new Particle(
+                        particlePool.get(
                             tailX, tailY,
                             Math.cos(particleAngle) * speed + this.vx * 0.3,
                             Math.sin(particleAngle) * speed + this.vy * 0.3,
                             ['#ff9933', '#ff6633', '#ffcc33', '#ffaa00', '#ffffff'][randomInt(0, 4)],
                             random(2, 5),
                             random(0.3, 0.7)
-                        ));
+                        );
                     }
                 }
 
@@ -1289,17 +1330,30 @@
             }
         }
 
-        function drawBackground() {
-            // Draw stars
+        function drawStaticBackground() {
+            // Performance: Render static stars to background canvas (called once or when needed)
+            bgCtx.fillStyle = '#0a0e27';
+            bgCtx.fillRect(0, 0, bgCanvas.width, bgCanvas.height);
+
+            // Draw stars (static, only update twinkle periodically)
             stars.forEach(star => {
                 const twinkle = Math.sin(currentTime / 1000 * star.twinkleSpeed) * 0.3 + 0.7;
-                ctx.fillStyle = `rgba(255, 255, 255, ${star.brightness * twinkle})`;
-                ctx.beginPath();
-                ctx.arc(star.x, star.y, star.radius, 0, Math.PI * 2);
-                ctx.fill();
+                bgCtx.fillStyle = `rgba(255, 255, 255, ${star.brightness * twinkle})`;
+                bgCtx.beginPath();
+                bgCtx.arc(star.x, star.y, star.radius, 0, Math.PI * 2);
+                bgCtx.fill();
             });
+            bgNeedsRedraw = false;
+        }
 
-            // Draw shooting stars
+        function drawBackground() {
+            // Performance: Draw pre-rendered background (fast!)
+            if (bgNeedsRedraw) {
+                drawStaticBackground();
+            }
+            ctx.drawImage(bgCanvas, 0, 0);
+
+            // Draw dynamic shooting stars on main canvas
             shootingStars.forEach((star, index) => {
                 ctx.strokeStyle = `rgba(255, 255, 255, ${star.alpha})`;
                 ctx.lineWidth = 2;
@@ -1901,11 +1955,9 @@
                 waveTransitionTimer -= dt;
             }
 
-            // Update particles
-            particles = particles.filter(particle => {
-                particle.update(dt);
-                return particle.life > 0;
-            });
+            // Update particles (using object pool for performance)
+            const activeParticles = particlePool.getActiveParticles();
+            activeParticles.forEach(particle => particle.update(dt));
 
             // Update score popups (with safety limit)
             const MAX_SCORE_POPUPS = 50;
@@ -1941,6 +1993,13 @@
                     achievementPopup = null;
                 }
             }
+
+            // Performance: Update background periodically for star twinkle
+            bgUpdateTimer += dt;
+            if (bgUpdateTimer >= BG_UPDATE_INTERVAL) {
+                bgNeedsRedraw = true;
+                bgUpdateTimer = 0;
+            }
         }
 
         // ============================================================
@@ -1961,8 +2020,8 @@
 
             // Game objects
             if (gameState === GAME_STATE.PLAYING || gameState === GAME_STATE.PAUSED || gameState === GAME_STATE.WAVE_TRANSITION) {
-                // Draw particles first
-                particles.forEach(particle => particle.draw());
+                // Draw particles first (from object pool)
+                particlePool.getActiveParticles().forEach(particle => particle.draw());
 
                 // Draw impact sparks
                 impactSparks.forEach(spark => spark.draw());
