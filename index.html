@@ -224,12 +224,12 @@
 
         // Input state
         const keys = {};
-        let mouseX = 0;
-        let mouseY = 0;
+        let mouseX = canvas.width / 2;  // Initialize to center to prevent ship going crazy
+        let mouseY = canvas.height / 2;
         let mouseDown = false;
         let useMouseControls = false; // Toggle with 'C' key
-        let touchX = 0;
-        let touchY = 0;
+        let touchX = canvas.width / 2;  // Initialize to center
+        let touchY = canvas.height / 2;
         let touching = false;
         let isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 
