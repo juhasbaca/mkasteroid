@@ -692,15 +692,11 @@
             }
 
             update(dt) {
-                // Mouse/Touch controls
-                if (useMouseControls || touching) {
-                    // Use touch coordinates if touching, otherwise mouse
-                    const targetX = touching ? touchX : mouseX;
-                    const targetY = touching ? touchY : mouseY;
-
-                    // Calculate angle to mouse/touch position
-                    const dx = targetX - this.x;
-                    const dy = targetY - this.y;
+                // Touch controls (mobile only)
+                if (touching) {
+                    // Calculate angle to touch position
+                    const dx = touchX - this.x;
+                    const dy = touchY - this.y;
                     const targetAngle = Math.atan2(dy, dx);
 
                     // Smoothly rotate toward target
@@ -709,13 +705,13 @@
                     while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
                     while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
 
-                    // Apply rotation (faster turn for mouse)
+                    // Apply rotation (faster turn for touch)
                     const turnSpeed = 0.15;
                     if (Math.abs(angleDiff) > 0.1) {
                         this.angle += angleDiff * turnSpeed;
                     }
 
-                    // Auto-thrust toward mouse (with dead zone)
+                    // Auto-thrust toward touch (with dead zone)
                     const distance = Math.sqrt(dx * dx + dy * dy);
                     this.thrust = distance > 50; // 50px dead zone
 
@@ -726,10 +722,8 @@
                         this.thrustFrame = (this.thrustFrame + 0.2) % 3;
                     }
 
-                    // Shoot on mouse click or touch
-                    if (mouseDown || touching) {
-                        this.shoot();
-                    }
+                    // Auto-shoot when touching
+                    this.shoot();
                 } else {
                     // Keyboard controls
                     const turnSpeed = (selectedDifficulty.shipTurnSpeed || 1) * 5 * (Math.PI / 180);
@@ -741,7 +735,7 @@
                 }
 
                 // Apply thrust physics for keyboard mode
-                if (this.thrust && !useMouseControls) {
+                if (this.thrust && !touching) {
                     const acceleration = 0.3;
                     this.vx += Math.cos(this.angle) * acceleration;
                     this.vy += Math.sin(this.angle) * acceleration;
@@ -2069,11 +2063,6 @@
                 muteIndicatorAlpha -= dt * 2;
             }
 
-            // Update control mode indicator fade
-            if (controlModeIndicatorAlpha > 0) {
-                controlModeIndicatorAlpha -= dt;
-            }
-
             // Update achievement popup
             if (achievementPopup && achievementPopup.timer > 0) {
                 achievementPopup.timer -= dt;
@@ -2179,19 +2168,6 @@
                 ctx.shadowBlur = 10;
                 ctx.shadowColor = muted ? '#ff0000' : '#00ff41';
                 ctx.fillText(muted ? '🔇 MUTED' : '🔊 SOUND ON', canvas.width - 20, 40);
-                ctx.restore();
-            }
-
-            // Control mode indicator
-            if (controlModeIndicatorAlpha > 0) {
-                ctx.save();
-                ctx.globalAlpha = Math.min(1, controlModeIndicatorAlpha);
-                ctx.font = 'bold 24px Courier New';
-                ctx.fillStyle = useMouseControls ? '#00ffff' : '#ffaa00';
-                ctx.textAlign = 'right';
-                ctx.shadowBlur = 10;
-                ctx.shadowColor = useMouseControls ? '#00ffff' : '#ffaa00';
-                ctx.fillText(useMouseControls ? '🖱️ MOUSE CONTROL' : '⌨️ KEYBOARD', canvas.width - 20, 70);
                 ctx.restore();
             }
 
@@ -2619,8 +2595,6 @@
             y += 25;
             ctx.fillText('SPACE: Shoot', leftCol, y);
             y += 25;
-            ctx.fillText('C    : Toggle Mouse Control', leftCol, y);
-            y += 25;
             ctx.fillText('P    : Pause', leftCol, y);
             y += 25;
             ctx.fillText('M    : Mute', leftCol, y);
@@ -2851,19 +2825,6 @@
                 muted = !muted;
                 muteIndicatorAlpha = 1;
             }
-
-            // Toggle mouse controls with 'C' key
-            if ((e.key === 'c' || e.key === 'C') && gameState === GAME_STATE.PLAYING) {
-                useMouseControls = !useMouseControls;
-                controlModeIndicatorAlpha = 2; // Show for 2 seconds
-
-                // When enabling mouse controls, set mouse position to ship position
-                // This prevents the ship from immediately chasing a random point
-                if (useMouseControls && ship) {
-                    mouseX = ship.x;
-                    mouseY = ship.y;
-                }
-            }
         });
 
         window.addEventListener('keyup', (e) => {
@@ -2907,12 +2868,6 @@
                     gameState = GAME_STATE.PLAYING;
                     initGame();
                 }
-            }
-
-            // Handle PLAYING state
-            if (useMouseControls && gameState === GAME_STATE.PLAYING) {
-                mouseDown = true;
-                e.preventDefault();
             }
         });
 
@@ -2982,10 +2937,8 @@
             touching = false;
         }, { passive: false });
 
-        // Auto-enable mouse controls on mobile devices
-        if (isMobile) {
-            useMouseControls = true;
-        }
+        // Don't auto-enable mouse controls on mobile
+        // Touch controls work independently through the 'touching' flag
 
         // ============================================================
         // GAME LOOP
