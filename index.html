@@ -176,6 +176,24 @@
         let waveTransitionTimer = 0;
         let waveTransitionMessage = '';
 
+        // Achievements system
+        let achievements = {
+            firstBlood: { unlocked: false, name: 'First Blood', desc: 'Destroy your first asteroid' },
+            comboMaster: { unlocked: false, name: 'Combo Master', desc: 'Reach 5x combo multiplier' },
+            wave5: { unlocked: false, name: 'Survivor', desc: 'Reach wave 5' },
+            wave10: { unlocked: false, name: 'Veteran', desc: 'Reach wave 10' },
+            sharpShooter: { unlocked: false, name: 'Sharp Shooter', desc: '80%+ accuracy (20+ shots)' },
+            ufoHunter: { unlocked: false, name: 'UFO Hunter', desc: 'Destroy 5 UFOs' },
+            collector: { unlocked: false, name: 'Collector', desc: 'Collect 10 power-ups' },
+            bomberman: { unlocked: false, name: 'Bomberman', desc: 'Use a bomb power-up' }
+        };
+        let unlockedAchievements = JSON.parse(localStorage.getItem('asteroidsAchievements') || '{}');
+        Object.keys(unlockedAchievements).forEach(key => {
+            if (achievements[key]) achievements[key].unlocked = true;
+        });
+        let achievementPopup = null; // {name, desc, timer}
+        let powerupsCollected = 0;
+
         // Input state
         const keys = {};
 
@@ -555,6 +573,27 @@
             const color = comboMultiplier > 1 ? '#ff00ff' : '#00ff41';
             const text = `+${points}`;
             scorePopups.push(new ScorePopup(x, y, text, color));
+        }
+
+        function unlockAchievement(key) {
+            if (achievements[key] && !achievements[key].unlocked) {
+                achievements[key].unlocked = true;
+                unlockedAchievements[key] = true;
+                localStorage.setItem('asteroidsAchievements', JSON.stringify(unlockedAchievements));
+                achievementPopup = { name: achievements[key].name, desc: achievements[key].desc, timer: 4 };
+                playSound('powerup');
+                addFlash('#ffd700', 0.4);
+            }
+        }
+
+        function checkAchievements() {
+            if (asteroidsDestroyed >= 1) unlockAchievement('firstBlood');
+            if (comboMultiplier >= 5) unlockAchievement('comboMaster');
+            if (wave >= 5) unlockAchievement('wave5');
+            if (wave >= 10) unlockAchievement('wave10');
+            if (shotsFired >= 20 && shotsHit / shotsFired >= 0.8) unlockAchievement('sharpShooter');
+            if (ufosDestroyed >= 5) unlockAchievement('ufoHunter');
+            if (powerupsCollected >= 10) unlockAchievement('collector');
         }
 
         // ============================================================
@@ -1459,8 +1498,10 @@
                             asteroids = [];
                             addScreenShake(10, 0.5);
                             addBorderGlow('#ef4444', 2, 1);
+                            unlockAchievement('bomberman');
                         }
 
+                        powerupsCollected++;
                         powerupsToRemove.add(index);
                     }
                 }
@@ -1849,6 +1890,9 @@
                     console.error('Collision detection error:', error);
                 }
 
+                // Check achievements
+                checkAchievements();
+
                 // Check wave complete
                 checkWaveComplete();
             }
@@ -1888,6 +1932,14 @@
             // Update mute indicator fade
             if (muteIndicatorAlpha > 0) {
                 muteIndicatorAlpha -= dt * 2;
+            }
+
+            // Update achievement popup
+            if (achievementPopup && achievementPopup.timer > 0) {
+                achievementPopup.timer -= dt;
+                if (achievementPopup.timer <= 0) {
+                    achievementPopup = null;
+                }
             }
         }
 
@@ -1980,6 +2032,45 @@
                 ctx.shadowBlur = 10;
                 ctx.shadowColor = muted ? '#ff0000' : '#00ff41';
                 ctx.fillText(muted ? '🔇 MUTED' : '🔊 SOUND ON', canvas.width - 20, 40);
+                ctx.restore();
+            }
+
+            // Achievement popup
+            if (achievementPopup && achievementPopup.timer > 0) {
+                const alpha = Math.min(1, achievementPopup.timer > 3 ? (4 - achievementPopup.timer) : achievementPopup.timer);
+                ctx.save();
+                ctx.globalAlpha = alpha;
+
+                const boxWidth = 400;
+                const boxHeight = 80;
+                const x = canvas.width / 2 - boxWidth / 2;
+                const y = 100;
+
+                // Background box
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+                ctx.fillRect(x, y, boxWidth, boxHeight);
+
+                // Border
+                ctx.strokeStyle = '#ffd700';
+                ctx.lineWidth = 3;
+                ctx.strokeRect(x, y, boxWidth, boxHeight);
+
+                // Achievement unlocked text
+                ctx.font = 'bold 18px Courier New';
+                ctx.fillStyle = '#ffd700';
+                ctx.textAlign = 'center';
+                ctx.fillText('🏆 ACHIEVEMENT UNLOCKED', canvas.width / 2, y + 28);
+
+                // Achievement name
+                ctx.font = 'bold 22px Courier New';
+                ctx.fillStyle = '#ffffff';
+                ctx.fillText(achievementPopup.name, canvas.width / 2, y + 52);
+
+                // Achievement description
+                ctx.font = '14px Courier New';
+                ctx.fillStyle = '#cccccc';
+                ctx.fillText(achievementPopup.desc, canvas.width / 2, y + 70);
+
                 ctx.restore();
             }
 
