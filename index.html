@@ -2856,6 +2856,13 @@
             if ((e.key === 'c' || e.key === 'C') && gameState === GAME_STATE.PLAYING) {
                 useMouseControls = !useMouseControls;
                 controlModeIndicatorAlpha = 2; // Show for 2 seconds
+
+                // When enabling mouse controls, set mouse position to ship position
+                // This prevents the ship from immediately chasing a random point
+                if (useMouseControls && ship) {
+                    mouseX = ship.x;
+                    mouseY = ship.y;
+                }
             }
         });
 
