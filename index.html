@@ -161,6 +161,7 @@
         let highScore = parseInt(localStorage.getItem('asteroidsHighScore')) || 0;
         let lives = 3;
         let wave = 1;
+        let currentWaveType = 'normal'; // Wave variety feature
         let comboCount = 0;
         let comboTimer = 0;
         let comboMultiplier = 1;
@@ -174,6 +175,24 @@
         let muted = false;
         let waveTransitionTimer = 0;
         let waveTransitionMessage = '';
+
+        // Achievements system
+        let achievements = {
+            firstBlood: { unlocked: false, name: 'First Blood', desc: 'Destroy your first asteroid' },
+            comboMaster: { unlocked: false, name: 'Combo Master', desc: 'Reach 5x combo multiplier' },
+            wave5: { unlocked: false, name: 'Survivor', desc: 'Reach wave 5' },
+            wave10: { unlocked: false, name: 'Veteran', desc: 'Reach wave 10' },
+            sharpShooter: { unlocked: false, name: 'Sharp Shooter', desc: '80%+ accuracy (20+ shots)' },
+            ufoHunter: { unlocked: false, name: 'UFO Hunter', desc: 'Destroy 5 UFOs' },
+            collector: { unlocked: false, name: 'Collector', desc: 'Collect 10 power-ups' },
+            bomberman: { unlocked: false, name: 'Bomberman', desc: 'Use a bomb power-up' }
+        };
+        let unlockedAchievements = JSON.parse(localStorage.getItem('asteroidsAchievements') || '{}');
+        Object.keys(unlockedAchievements).forEach(key => {
+            if (achievements[key]) achievements[key].unlocked = true;
+        });
+        let achievementPopup = null; // {name, desc, timer}
+        let powerupsCollected = 0;
 
         // Input state
         const keys = {};
@@ -212,8 +231,11 @@
         let activePowerups = {
             shield: false,
             tripleShot: { active: false, timer: 0 },
-            rapidFire: { active: false, timer: 0 }
+            rapidFire: { active: false, timer: 0 },
+            magnet: { active: false, timer: 0 },
+            slowMo: { active: false, timer: 0 }
         };
+        let timeScale = 1.0; // For slow-mo effect
 
         // ============================================================
         // UTILITY FUNCTIONS
@@ -551,6 +573,27 @@
             const color = comboMultiplier > 1 ? '#ff00ff' : '#00ff41';
             const text = `+${points}`;
             scorePopups.push(new ScorePopup(x, y, text, color));
+        }
+
+        function unlockAchievement(key) {
+            if (achievements[key] && !achievements[key].unlocked) {
+                achievements[key].unlocked = true;
+                unlockedAchievements[key] = true;
+                localStorage.setItem('asteroidsAchievements', JSON.stringify(unlockedAchievements));
+                achievementPopup = { name: achievements[key].name, desc: achievements[key].desc, timer: 4 };
+                playSound('powerup');
+                addFlash('#ffd700', 0.4);
+            }
+        }
+
+        function checkAchievements() {
+            if (asteroidsDestroyed >= 1) unlockAchievement('firstBlood');
+            if (comboMultiplier >= 5) unlockAchievement('comboMaster');
+            if (wave >= 5) unlockAchievement('wave5');
+            if (wave >= 10) unlockAchievement('wave10');
+            if (shotsFired >= 20 && shotsHit / shotsFired >= 0.8) unlockAchievement('sharpShooter');
+            if (ufosDestroyed >= 5) unlockAchievement('ufoHunter');
+            if (powerupsCollected >= 10) unlockAchievement('collector');
         }
 
         // ============================================================
@@ -1117,7 +1160,10 @@
                 const colors = {
                     shield: '#3b82f6',
                     tripleShot: '#f97316',
-                    rapidFire: '#fbbf24'
+                    rapidFire: '#fbbf24',
+                    magnet: '#a855f7',
+                    slowMo: '#06b6d4',
+                    bomb: '#ef4444'
                 };
 
                 const color = colors[this.type];
@@ -1186,6 +1232,39 @@
                     ctx.lineTo(-this.radius * 0.2, -this.radius * 0.3);
                     ctx.closePath();
                     ctx.stroke();
+                } else if (this.type === 'magnet') {
+                    // Horseshoe magnet
+                    ctx.beginPath();
+                    ctx.arc(0, -this.radius * 0.3, this.radius * 0.7, Math.PI, 0, false);
+                    ctx.lineTo(this.radius * 0.7, this.radius);
+                    ctx.moveTo(-this.radius * 0.7, -this.radius * 0.3);
+                    ctx.lineTo(-this.radius * 0.7, this.radius);
+                    ctx.stroke();
+                } else if (this.type === 'slowMo') {
+                    // Clock/stopwatch
+                    ctx.beginPath();
+                    ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
+                    ctx.stroke();
+                    ctx.beginPath();
+                    ctx.moveTo(0, 0);
+                    ctx.lineTo(0, -this.radius * 0.6);
+                    ctx.moveTo(0, 0);
+                    ctx.lineTo(this.radius * 0.4, 0);
+                    ctx.stroke();
+                } else if (this.type === 'bomb') {
+                    // Bomb with fuse
+                    ctx.beginPath();
+                    ctx.arc(0, this.radius * 0.2, this.radius * 0.8, 0, Math.PI * 2);
+                    ctx.stroke();
+                    ctx.beginPath();
+                    ctx.moveTo(0, -this.radius * 0.6);
+                    ctx.lineTo(0, -this.radius);
+                    ctx.stroke();
+                    // Sparkle on fuse
+                    ctx.fillStyle = color;
+                    ctx.beginPath();
+                    ctx.arc(0, -this.radius, this.radius * 0.2, 0, Math.PI * 2);
+                    ctx.fill();
                 }
 
                 ctx.restore();
@@ -1341,7 +1420,7 @@
 
                         // Maybe drop powerup
                         if (Math.random() < selectedDifficulty.powerupChance) {
-                            const types = ['shield', 'tripleShot', 'rapidFire'];
+                            const types = ['shield', 'tripleShot', 'rapidFire', 'magnet', 'slowMo', 'bomb'];
                             const type = types[randomInt(0, types.length - 1)];
                             powerups.push(new Powerup(ufo.x, ufo.y, type));
                         }
@@ -1388,10 +1467,10 @@
                     const powerup = powerups[index];
                     if (checkCollision(ship, powerup)) {
                         playSound('powerup');
-                        addFlash(powerup.type === 'shield' ? '#3b82f6' : powerup.type === 'tripleShot' ? '#f97316' : '#fbbf24', 0.3);
-                        createExplosion(powerup.x, powerup.y, 20, [
-                            powerup.type === 'shield' ? '#3b82f6' : powerup.type === 'tripleShot' ? '#f97316' : '#fbbf24'
-                        ]);
+                        const colors = { shield: '#3b82f6', tripleShot: '#f97316', rapidFire: '#fbbf24', magnet: '#a855f7', slowMo: '#06b6d4', bomb: '#ef4444' };
+                        const color = colors[powerup.type] || '#ffffff';
+                        addFlash(color, 0.3);
+                        createExplosion(powerup.x, powerup.y, 20, [color]);
 
                         if (powerup.type === 'shield') {
                             activePowerups.shield = true;
@@ -1401,8 +1480,28 @@
                         } else if (powerup.type === 'rapidFire') {
                             activePowerups.rapidFire.active = true;
                             activePowerups.rapidFire.timer = 10;
+                        } else if (powerup.type === 'magnet') {
+                            activePowerups.magnet.active = true;
+                            activePowerups.magnet.timer = 10;
+                        } else if (powerup.type === 'slowMo') {
+                            activePowerups.slowMo.active = true;
+                            activePowerups.slowMo.timer = 8;
+                            timeScale = 0.5; // Slow down time
+                        } else if (powerup.type === 'bomb') {
+                            // Destroy all asteroids!
+                            asteroids.forEach((asteroid, idx) => {
+                                const points = asteroid.getPoints() * comboMultiplier;
+                                score += points;
+                                addScorePopup(asteroid.x, asteroid.y, points);
+                                createExplosion(asteroid.x, asteroid.y, 15, ['#ef4444', '#ff9933']);
+                            });
+                            asteroids = [];
+                            addScreenShake(10, 0.5);
+                            addBorderGlow('#ef4444', 2, 1);
+                            unlockAchievement('bomberman');
                         }
 
+                        powerupsCollected++;
                         powerupsToRemove.add(index);
                     }
                 }
@@ -1520,23 +1619,53 @@
         function startWave(waveNumber) {
             asteroids = [];
 
-            // Aggressive optimization: cap at 6 large asteroids per wave
-            let count = 3;
-            if (waveNumber >= 2 && waveNumber <= 5) {
-                count = 3 + (waveNumber - 1);
-            } else if (waveNumber >= 6) {
-                count = 6; // Capped at 6 for performance
+            // Determine wave type (every 5th wave is special, 3rd is bonus)
+            if (waveNumber % 5 === 0) {
+                currentWaveType = 'titans';
+            } else if (waveNumber % 3 === 0) {
+                currentWaveType = 'storm';
+            } else {
+                currentWaveType = 'normal';
             }
 
-            for (let i = 0; i < count; i++) {
-                // Spawn away from center
-                let x, y;
-                do {
-                    x = random(0, canvas.width);
-                    y = random(0, canvas.height);
-                } while (distance(x, y, canvas.width / 2, canvas.height / 2) < 150);
+            // Aggressive optimization: cap at 6 large asteroids per wave
+            let baseCount = 3;
+            if (waveNumber >= 2 && waveNumber <= 5) {
+                baseCount = 3 + (waveNumber - 1);
+            } else if (waveNumber >= 6) {
+                baseCount = 6; // Capped at 6 for performance
+            }
 
-                asteroids.push(new Asteroid(x, y, 'large'));
+            if (currentWaveType === 'storm') {
+                // Asteroid Storm: Many small asteroids
+                for (let i = 0; i < Math.min(20, baseCount * 3); i++) {
+                    let x, y;
+                    do {
+                        x = random(0, canvas.width);
+                        y = random(0, canvas.height);
+                    } while (distance(x, y, canvas.width / 2, canvas.height / 2) < 150);
+                    asteroids.push(new Asteroid(x, y, 'small'));
+                }
+            } else if (currentWaveType === 'titans') {
+                // Titans: Few large asteroids only
+                for (let i = 0; i < Math.min(4, baseCount); i++) {
+                    let x, y;
+                    do {
+                        x = random(0, canvas.width);
+                        y = random(0, canvas.height);
+                    } while (distance(x, y, canvas.width / 2, canvas.height / 2) < 150);
+                    asteroids.push(new Asteroid(x, y, 'large'));
+                }
+            } else {
+                // Normal: Regular mix
+                for (let i = 0; i < baseCount; i++) {
+                    let x, y;
+                    do {
+                        x = random(0, canvas.width);
+                        y = random(0, canvas.height);
+                    } while (distance(x, y, canvas.width / 2, canvas.height / 2) < 150);
+                    asteroids.push(new Asteroid(x, y, 'large'));
+                }
             }
 
             // Reset UFO timer
@@ -1559,7 +1688,20 @@
 
                 setTimeout(() => {
                     wave++;
-                    waveTransitionMessage = `WAVE ${wave}`;
+
+                    // Determine next wave type for preview
+                    let nextWaveType = 'normal';
+                    if (wave % 5 === 0) nextWaveType = 'titans';
+                    else if (wave % 3 === 0) nextWaveType = 'storm';
+
+                    const waveTypeNames = {
+                        normal: '',
+                        storm: '⚡ ASTEROID STORM',
+                        titans: '💎 TITAN WAVE'
+                    };
+
+                    const typeName = waveTypeNames[nextWaveType];
+                    waveTransitionMessage = `WAVE ${wave}${typeName ? '\n' + typeName : ''}`;
                     waveTransitionTimer = 2;
 
                     setTimeout(() => {
@@ -1617,7 +1759,10 @@
 
         function update(dt) {
             if (gameState === GAME_STATE.PLAYING) {
-                // Update ship
+                // Apply time scale for slow-mo (but keep ship at normal speed)
+                const scaledDt = dt * timeScale;
+
+                // Update ship (unaffected by slow-mo)
                 if (ship) {
                     ship.update(dt);
 
@@ -1627,30 +1772,30 @@
                     }
                 }
 
-                // Update asteroids (with safety limit)
+                // Update asteroids (with safety limit, affected by slow-mo)
                 const MAX_ASTEROIDS = 100;
                 if (asteroids.length > MAX_ASTEROIDS) {
                     console.warn('Too many asteroids, removing oldest');
                     asteroids.splice(0, asteroids.length - MAX_ASTEROIDS);
                 }
-                asteroids.forEach(asteroid => asteroid.update(dt));
+                asteroids.forEach(asteroid => asteroid.update(scaledDt));
 
-                // Update bullets
+                // Update bullets (player bullets unaffected by slow-mo)
                 bullets = bullets.filter(bullet => {
                     bullet.update(dt);
                     return bullet.life > 0;
                 });
 
-                // Update UFO bullets (with safety limit)
+                // Update UFO bullets (with safety limit, affected by slow-mo)
                 const MAX_UFO_BULLETS = 50;
                 if (ufoBullets.length > MAX_UFO_BULLETS) {
                     console.warn('Too many UFO bullets, removing oldest');
                     ufoBullets.splice(0, ufoBullets.length - MAX_UFO_BULLETS);
                 }
                 ufoBullets = ufoBullets.filter(bullet => {
-                    bullet.x += bullet.vx * dt * 60;
-                    bullet.y += bullet.vy * dt * 60;
-                    bullet.life -= dt;
+                    bullet.x += bullet.vx * scaledDt * 60;
+                    bullet.y += bullet.vy * scaledDt * 60;
+                    bullet.life -= scaledDt;
 
                     // Remove bullet if it goes off-screen
                     if (bullet.x < -10 || bullet.x > canvas.width + 10 ||
@@ -1661,9 +1806,9 @@
                     return bullet.life > 0;
                 });
 
-                // Update UFO
+                // Update UFO (affected by slow-mo)
                 if (ufo) {
-                    if (!ufo.update(dt)) {
+                    if (!ufo.update(scaledDt)) {
                         ufo = null;
                     }
                 }
@@ -1696,6 +1841,30 @@
                         activePowerups.rapidFire.active = false;
                     }
                 }
+                if (activePowerups.magnet.active) {
+                    activePowerups.magnet.timer -= dt;
+                    if (activePowerups.magnet.timer <= 0) {
+                        activePowerups.magnet.active = false;
+                    }
+                    // Magnet logic: attract powerups
+                    powerups.forEach(powerup => {
+                        const dx = ship.x - powerup.x;
+                        const dy = ship.y - powerup.y;
+                        const dist = Math.sqrt(dx * dx + dy * dy);
+                        if (dist > 0 && dist < 300) {
+                            const strength = 3 / dist;
+                            powerup.vx += (dx / dist) * strength;
+                            powerup.vy += (dy / dist) * strength;
+                        }
+                    });
+                }
+                if (activePowerups.slowMo.active) {
+                    activePowerups.slowMo.timer -= dt;
+                    if (activePowerups.slowMo.timer <= 0) {
+                        activePowerups.slowMo.active = false;
+                        timeScale = 1.0; // Return to normal speed
+                    }
+                }
 
                 // Update combo timer
                 if (comboTimer > 0) {
@@ -1720,6 +1889,9 @@
                 } catch (error) {
                     console.error('Collision detection error:', error);
                 }
+
+                // Check achievements
+                checkAchievements();
 
                 // Check wave complete
                 checkWaveComplete();
@@ -1760,6 +1932,14 @@
             // Update mute indicator fade
             if (muteIndicatorAlpha > 0) {
                 muteIndicatorAlpha -= dt * 2;
+            }
+
+            // Update achievement popup
+            if (achievementPopup && achievementPopup.timer > 0) {
+                achievementPopup.timer -= dt;
+                if (achievementPopup.timer <= 0) {
+                    achievementPopup = null;
+                }
             }
         }
 
@@ -1810,6 +1990,9 @@
                 // Draw ship
                 if (ship) ship.draw();
 
+                // Draw screen wrap indicators
+                if (ship) drawWrapIndicators();
+
                 // Draw score popups
                 scorePopups.forEach(popup => popup.draw());
 
@@ -1852,6 +2035,45 @@
                 ctx.restore();
             }
 
+            // Achievement popup
+            if (achievementPopup && achievementPopup.timer > 0) {
+                const alpha = Math.min(1, achievementPopup.timer > 3 ? (4 - achievementPopup.timer) : achievementPopup.timer);
+                ctx.save();
+                ctx.globalAlpha = alpha;
+
+                const boxWidth = 400;
+                const boxHeight = 80;
+                const x = canvas.width / 2 - boxWidth / 2;
+                const y = 100;
+
+                // Background box
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+                ctx.fillRect(x, y, boxWidth, boxHeight);
+
+                // Border
+                ctx.strokeStyle = '#ffd700';
+                ctx.lineWidth = 3;
+                ctx.strokeRect(x, y, boxWidth, boxHeight);
+
+                // Achievement unlocked text
+                ctx.font = 'bold 18px Courier New';
+                ctx.fillStyle = '#ffd700';
+                ctx.textAlign = 'center';
+                ctx.fillText('🏆 ACHIEVEMENT UNLOCKED', canvas.width / 2, y + 28);
+
+                // Achievement name
+                ctx.font = 'bold 22px Courier New';
+                ctx.fillStyle = '#ffffff';
+                ctx.fillText(achievementPopup.name, canvas.width / 2, y + 52);
+
+                // Achievement description
+                ctx.font = '14px Courier New';
+                ctx.fillStyle = '#cccccc';
+                ctx.fillText(achievementPopup.desc, canvas.width / 2, y + 70);
+
+                ctx.restore();
+            }
+
             // UI screens
             if (gameState === GAME_STATE.START) {
                 drawStartScreen();
@@ -1864,6 +2086,62 @@
             } else if (gameState === GAME_STATE.HELP) {
                 drawHelpScreen();
             }
+        }
+
+        function drawWrapIndicators() {
+            const edgeThreshold = 100; // Show indicator when within this distance from edge
+            const indicatorSize = 15;
+
+            ctx.strokeStyle = '#00ff41';
+            ctx.fillStyle = '#00ff41';
+            ctx.lineWidth = 2;
+            ctx.globalAlpha = 0.6;
+
+            // Left edge -> show on right
+            if (ship.x < edgeThreshold) {
+                const wrapX = canvas.width - 20;
+                const y = ship.y;
+                ctx.beginPath();
+                ctx.moveTo(wrapX - indicatorSize, y - indicatorSize);
+                ctx.lineTo(wrapX, y);
+                ctx.lineTo(wrapX - indicatorSize, y + indicatorSize);
+                ctx.stroke();
+            }
+
+            // Right edge -> show on left
+            if (ship.x > canvas.width - edgeThreshold) {
+                const wrapX = 20;
+                const y = ship.y;
+                ctx.beginPath();
+                ctx.moveTo(wrapX + indicatorSize, y - indicatorSize);
+                ctx.lineTo(wrapX, y);
+                ctx.lineTo(wrapX + indicatorSize, y + indicatorSize);
+                ctx.stroke();
+            }
+
+            // Top edge -> show on bottom
+            if (ship.y < edgeThreshold) {
+                const x = ship.x;
+                const wrapY = canvas.height - 20;
+                ctx.beginPath();
+                ctx.moveTo(x - indicatorSize, wrapY - indicatorSize);
+                ctx.lineTo(x, wrapY);
+                ctx.lineTo(x + indicatorSize, wrapY - indicatorSize);
+                ctx.stroke();
+            }
+
+            // Bottom edge -> show on top
+            if (ship.y > canvas.height - edgeThreshold) {
+                const x = ship.x;
+                const wrapY = 20;
+                ctx.beginPath();
+                ctx.moveTo(x - indicatorSize, wrapY + indicatorSize);
+                ctx.lineTo(x, wrapY);
+                ctx.lineTo(x + indicatorSize, wrapY + indicatorSize);
+                ctx.stroke();
+            }
+
+            ctx.globalAlpha = 1;
         }
 
         function drawHUD() {
