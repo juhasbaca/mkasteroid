@@ -216,7 +216,6 @@
         let ufoBullets = [];
         let ufo = null;
         let powerups = [];
-        let particles = [];
         let scorePopups = [];
 
         // Background elements
@@ -1786,6 +1785,7 @@
             shotsHit = 0;
             asteroidsDestroyed = 0;
             ufosDestroyed = 0;
+            powerupsCollected = 0;
             showTutorial = true;
             tutorialTimer = 4;
 
@@ -1795,14 +1795,19 @@
             ufoBullets = [];
             ufo = null;
             powerups = [];
-            particles = [];
             scorePopups = [];
+
+            // Reset particle pool instead of particles array
+            particlePool.pool.forEach(p => p.active = false);
 
             activePowerups = {
                 shield: false,
                 tripleShot: { active: false, timer: 0 },
-                rapidFire: { active: false, timer: 0 }
+                rapidFire: { active: false, timer: 0 },
+                magnet: { active: false, timer: 0 },
+                slowMo: { active: false, timer: 0 }
             };
+            timeScale = 1.0;
 
             startWave(1);
         }
