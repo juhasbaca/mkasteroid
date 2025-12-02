@@ -1,6 +1,6 @@
 # 🚀 ASTEROIDS - Retro Space Shooter
 
-**Version: 1.1.0**
+**Version: 1.2.0**
 
 A modern recreation of the classic Asteroids arcade game with stunning visual effects, power-ups, and multiple difficulty levels. Built with vanilla JavaScript and HTML5 Canvas.
 
@@ -8,9 +8,9 @@ A modern recreation of the classic Asteroids arcade game with stunning visual ef
 
 ### Core Gameplay
 - **Classic Asteroids mechanics** with modern enhancements
-- **Three difficulty levels**: Easy, Medium, Hard
+- **Four difficulty levels**: Easy, Medium, Hard, Impossible
 - **Wave-based progression** with increasing challenge
-- **UFO enemies** that hunt the player and drop power-ups
+- **UFO enemies** that hunt the player and drop power-ups (multiple UFOs in Impossible mode!)
 - **Combo system** with multipliers up to 10x
 
 ### Power-Ups
@@ -51,6 +51,7 @@ A modern recreation of the classic Asteroids arcade game with stunning visual ef
 - **1/E** - Easy difficulty
 - **2/M** - Medium difficulty
 - **3/H** - Hard difficulty
+- **4/I** - Impossible difficulty
 - **Enter** - Start game / Play again
 - **Esc** - Return to main menu
 
@@ -95,6 +96,20 @@ A modern recreation of the classic Asteroids arcade game with stunning visual ef
 - Small UFOs (Wave 3+) are faster and more accurate
 - UFOs shoot at the player with varying accuracy based on difficulty
 - Screen border glows pink/red when UFO is destroyed
+
+### Difficulty Levels
+- **Easy**: Slower asteroids, less accurate UFOs, 4 lives, 30% power-up drop rate
+- **Medium**: Standard speed, balanced UFO accuracy, 3 lives, 20% power-up drop rate
+- **Hard**: Fast asteroids, very accurate UFOs, 2 lives, 15% power-up drop rate, faster ship turning
+- **Impossible**: 🔥 **THE ULTIMATE CHALLENGE** 🔥
+  - 2x faster asteroids than Hard mode
+  - 1.5x more asteroids per wave
+  - **2-3 UFOs active simultaneously!**
+  - 95% UFO accuracy (they rarely miss!)
+  - UFOs spawn every 8-12 seconds
+  - Only 1 life - no room for mistakes!
+  - 10% power-up drop rate
+  - Even faster ship turning speed (you'll need it!)
 
 ## 🛠️ Technical Details
 

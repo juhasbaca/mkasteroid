@@ -103,7 +103,7 @@
         canvas.height = Math.min(window.innerHeight - 20, 800);
 
         // Game version
-        const VERSION = 'v1.1.0';
+        const VERSION = 'v1.2.0';
 
         // Performance limits
         const MAX_ASTEROIDS = 40; // Aggressive optimization: limit total asteroids
@@ -127,7 +127,8 @@
                 ufoSpawnMin: 25000,
                 ufoSpawnMax: 30000,
                 lives: 4,
-                powerupChance: 0.3
+                powerupChance: 0.3,
+                maxUfos: 1
             },
             MEDIUM: {
                 name: 'MEDIUM',
@@ -136,7 +137,8 @@
                 ufoSpawnMin: 18000,
                 ufoSpawnMax: 25000,
                 lives: 3,
-                powerupChance: 0.2
+                powerupChance: 0.2,
+                maxUfos: 1
             },
             HARD: {
                 name: 'HARD',
@@ -146,7 +148,20 @@
                 ufoSpawnMax: 18000,
                 lives: 2,
                 powerupChance: 0.15,
-                shipTurnSpeed: 1.3
+                shipTurnSpeed: 1.3,
+                maxUfos: 1
+            },
+            IMPOSSIBLE: {
+                name: 'IMPOSSIBLE',
+                asteroidSpeed: 2.0,
+                ufoAccuracy: 0.95,
+                ufoSpawnMin: 8000,
+                ufoSpawnMax: 12000,
+                lives: 1,
+                powerupChance: 0.1,
+                shipTurnSpeed: 1.5,
+                maxUfos: 3,
+                asteroidCount: 1.5 // Multiplier for initial asteroid count
             }
         };
 
@@ -186,7 +201,7 @@
         let asteroids = [];
         let bullets = [];
         let ufoBullets = [];
-        let ufo = null;
+        let ufos = [];
         let powerups = [];
         let particles = [];
         let scorePopups = [];
@@ -1321,20 +1336,23 @@
                 }
             }
 
-            // Bullets vs UFO
-            if (ufo) {
+            // Bullets vs UFOs
+            const ufosToRemove = new Set();
+            for (let uIndex = 0; uIndex < ufos.length; uIndex++) {
+                if (ufosToRemove.has(uIndex)) continue;
+
                 for (let bIndex = 0; bIndex < bullets.length; bIndex++) {
                     if (bulletsToRemove.has(bIndex)) continue;
 
-                    if (checkCollision(bullets[bIndex], ufo)) {
+                    if (checkCollision(bullets[bIndex], ufos[uIndex])) {
                         shotsHit++;
-                        const points = ufo.getPoints() * comboMultiplier;
+                        const points = ufos[uIndex].getPoints() * comboMultiplier;
                         score += points;
-                        addScorePopup(ufo.x, ufo.y, points);
+                        addScorePopup(ufos[uIndex].x, ufos[uIndex].y, points);
                         updateCombo();
 
                         // Explosion
-                        createExplosion(ufo.x, ufo.y, 40, ['#ff3366', '#ff9933', '#00ff41'], 1.5);
+                        createExplosion(ufos[uIndex].x, ufos[uIndex].y, 40, ['#ff3366', '#ff9933', '#00ff41'], 1.5);
                         playSound('ufoDestroy');
                         addScreenShake(5, 0.25);
                         addBorderGlow('#ff3366', 1.5, 0.8);
@@ -1343,11 +1361,11 @@
                         if (Math.random() < selectedDifficulty.powerupChance) {
                             const types = ['shield', 'tripleShot', 'rapidFire'];
                             const type = types[randomInt(0, types.length - 1)];
-                            powerups.push(new Powerup(ufo.x, ufo.y, type));
+                            powerups.push(new Powerup(ufos[uIndex].x, ufos[uIndex].y, type));
                         }
 
                         bulletsToRemove.add(bIndex);
-                        ufo = null;
+                        ufosToRemove.add(uIndex);
                         ufosDestroyed++;
                         break;
                     }
@@ -1364,10 +1382,13 @@
                 }
             }
 
-            // Ship vs UFO
-            if (ship && !ship.invulnerable && ufo) {
-                if (checkCollision(ship, ufo)) {
-                    handleShipHit();
+            // Ship vs UFOs
+            if (ship && !ship.invulnerable) {
+                for (let uIndex = 0; uIndex < ufos.length; uIndex++) {
+                    if (checkCollision(ship, ufos[uIndex])) {
+                        handleShipHit();
+                        break; // Only process one collision per frame
+                    }
                 }
             }
 
@@ -1417,6 +1438,9 @@
 
             const ufoBulletIndices = Array.from(ufoBulletsToRemove).sort((a, b) => b - a);
             ufoBulletIndices.forEach(index => ufoBullets.splice(index, 1));
+
+            const ufoIndices = Array.from(ufosToRemove).sort((a, b) => b - a);
+            ufoIndices.forEach(index => ufos.splice(index, 1));
 
             const powerupIndices = Array.from(powerupsToRemove).sort((a, b) => b - a);
             powerupIndices.forEach(index => powerups.splice(index, 1));
@@ -1528,6 +1552,10 @@
                 count = 6; // Capped at 6 for performance
             }
 
+            // Apply difficulty multiplier (for IMPOSSIBLE mode)
+            const asteroidMultiplier = selectedDifficulty.asteroidCount || 1;
+            count = Math.floor(count * asteroidMultiplier);
+
             for (let i = 0; i < count; i++) {
                 // Spawn away from center
                 let x, y;
@@ -1597,7 +1625,7 @@
             asteroids = [];
             bullets = [];
             ufoBullets = [];
-            ufo = null;
+            ufos = [];
             powerups = [];
             particles = [];
             scorePopups = [];
@@ -1661,18 +1689,17 @@
                     return bullet.life > 0;
                 });
 
-                // Update UFO
-                if (ufo) {
-                    if (!ufo.update(dt)) {
-                        ufo = null;
-                    }
-                }
+                // Update UFOs
+                ufos = ufos.filter(ufo => {
+                    return ufo.update(dt);
+                });
 
-                // Spawn UFO
+                // Spawn UFOs
                 ufoSpawnTimer += dt * 1000;
-                if (ufoSpawnTimer >= nextUfoSpawnTime && !ufo) {
+                const maxUfos = selectedDifficulty.maxUfos || 1;
+                if (ufoSpawnTimer >= nextUfoSpawnTime && ufos.length < maxUfos) {
                     const isSmall = wave >= 3;
-                    ufo = new UFO(isSmall);
+                    ufos.push(new UFO(isSmall));
                     ufoSpawnTimer = 0;
                     nextUfoSpawnTime = random(selectedDifficulty.ufoSpawnMin, selectedDifficulty.ufoSpawnMax);
                 }
@@ -1801,8 +1828,8 @@
                     ctx.fill();
                 });
 
-                // Draw UFO
-                if (ufo) ufo.draw();
+                // Draw UFOs
+                ufos.forEach(ufo => ufo.draw());
 
                 // Draw powerups
                 powerups.forEach(powerup => powerup.draw());
@@ -2009,9 +2036,9 @@
             ctx.shadowColor = '#7209b7';
             ctx.fillText('SELECT DIFFICULTY', canvas.width / 2, 260);
 
-            const difficulties = [DIFFICULTY.EASY, DIFFICULTY.MEDIUM, DIFFICULTY.HARD];
+            const difficulties = [DIFFICULTY.EASY, DIFFICULTY.MEDIUM, DIFFICULTY.HARD, DIFFICULTY.IMPOSSIBLE];
             difficulties.forEach((diff, index) => {
-                const y = 310 + index * 60;
+                const y = 310 + index * 50;
                 const isSelected = selectedDifficulty === diff;
 
                 ctx.font = 'bold 24px Courier New';
@@ -2346,14 +2373,18 @@
                     selectedDifficulty = DIFFICULTY.MEDIUM;
                 } else if (e.key === '3' || e.key.toLowerCase() === 'h') {
                     selectedDifficulty = DIFFICULTY.HARD;
+                } else if (e.key === '4' || e.key.toLowerCase() === 'i') {
+                    selectedDifficulty = DIFFICULTY.IMPOSSIBLE;
                 } else if (e.key === 'ArrowUp') {
                     // Cycle up through difficulties
-                    if (selectedDifficulty === DIFFICULTY.HARD) {
+                    if (selectedDifficulty === DIFFICULTY.IMPOSSIBLE) {
+                        selectedDifficulty = DIFFICULTY.HARD;
+                    } else if (selectedDifficulty === DIFFICULTY.HARD) {
                         selectedDifficulty = DIFFICULTY.MEDIUM;
                     } else if (selectedDifficulty === DIFFICULTY.MEDIUM) {
                         selectedDifficulty = DIFFICULTY.EASY;
                     } else {
-                        selectedDifficulty = DIFFICULTY.HARD;
+                        selectedDifficulty = DIFFICULTY.IMPOSSIBLE;
                     }
                 } else if (e.key === 'ArrowDown') {
                     // Cycle down through difficulties
@@ -2361,6 +2392,8 @@
                         selectedDifficulty = DIFFICULTY.MEDIUM;
                     } else if (selectedDifficulty === DIFFICULTY.MEDIUM) {
                         selectedDifficulty = DIFFICULTY.HARD;
+                    } else if (selectedDifficulty === DIFFICULTY.HARD) {
+                        selectedDifficulty = DIFFICULTY.IMPOSSIBLE;
                     } else {
                         selectedDifficulty = DIFFICULTY.EASY;
                     }
