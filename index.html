@@ -106,7 +106,7 @@
         const VERSION = 'v1.2.0';
 
         // Performance limits
-        const MAX_ASTEROIDS = 40; // Aggressive optimization: limit total asteroids
+        const MAX_ASTEROIDS = 60; // Limit total asteroids (increased for IMPOSSIBLE mode)
 
         // Game states
         const GAME_STATE = {
@@ -1445,10 +1445,13 @@
             const powerupIndices = Array.from(powerupsToRemove).sort((a, b) => b - a);
             powerupIndices.forEach(index => powerups.splice(index, 1));
 
-            // Add new asteroids after all removal is done (with limit)
-            const availableSlots = MAX_ASTEROIDS - asteroids.length;
-            const asteroidsToAdd = newAsteroidsToAdd.slice(0, availableSlots);
-            asteroids.push(...asteroidsToAdd);
+            // Add new asteroids after all removal is done
+            // Always add split asteroids (they have priority), but enforce a hard limit
+            asteroids.push(...newAsteroidsToAdd);
+            if (asteroids.length > MAX_ASTEROIDS) {
+                console.warn(`Asteroid limit exceeded (${asteroids.length}), removing oldest`);
+                asteroids.splice(0, asteroids.length - MAX_ASTEROIDS);
+            }
         }
 
         function handleShipHit() {
