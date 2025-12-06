@@ -153,15 +153,15 @@
             },
             IMPOSSIBLE: {
                 name: 'IMPOSSIBLE',
-                asteroidSpeed: 2.0,
-                ufoAccuracy: 0.95,
-                ufoSpawnMin: 8000,
-                ufoSpawnMax: 12000,
-                lives: 1,
-                powerupChance: 0.1,
-                shipTurnSpeed: 1.5,
-                maxUfos: 3,
-                asteroidCount: 1.5 // Multiplier for initial asteroid count
+                asteroidSpeed: 1.7,
+                ufoAccuracy: 0.9,
+                ufoSpawnMin: 10000,
+                ufoSpawnMax: 15000,
+                lives: 2,
+                powerupChance: 0.12,
+                shipTurnSpeed: 1.4,
+                maxUfos: 2,
+                asteroidCount: 1.3 // Multiplier for initial asteroid count
             }
         };
 
@@ -2038,10 +2038,10 @@
 
             const difficulties = [DIFFICULTY.EASY, DIFFICULTY.MEDIUM, DIFFICULTY.HARD, DIFFICULTY.IMPOSSIBLE];
             difficulties.forEach((diff, index) => {
-                const y = 310 + index * 50;
+                const y = 290 + index * 45;
                 const isSelected = selectedDifficulty === diff;
 
-                ctx.font = 'bold 24px Courier New';
+                ctx.font = 'bold 22px Courier New';
                 ctx.fillStyle = isSelected ? '#ff006e' : '#7209b7';
                 ctx.shadowBlur = isSelected ? 15 : 10;
                 ctx.shadowColor = isSelected ? '#ff006e' : '#7209b7';
@@ -2054,7 +2054,7 @@
             ctx.fillStyle = '#00ff41';
             ctx.shadowBlur = 15;
             ctx.shadowColor = '#00ff41';
-            ctx.fillText('PRESS ENTER TO START', canvas.width / 2, 500);
+            ctx.fillText('PRESS ENTER TO START', canvas.width / 2, 480);
 
             // Controls
             ctx.font = '18px Courier New';

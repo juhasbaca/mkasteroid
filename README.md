@@ -102,14 +102,14 @@ A modern recreation of the classic Asteroids arcade game with stunning visual ef
 - **Medium**: Standard speed, balanced UFO accuracy, 3 lives, 20% power-up drop rate
 - **Hard**: Fast asteroids, very accurate UFOs, 2 lives, 15% power-up drop rate, faster ship turning
 - **Impossible**: 🔥 **THE ULTIMATE CHALLENGE** 🔥
-  - 2x faster asteroids than Hard mode
-  - 1.5x more asteroids per wave
-  - **2-3 UFOs active simultaneously!**
-  - 95% UFO accuracy (they rarely miss!)
-  - UFOs spawn every 8-12 seconds
-  - Only 1 life - no room for mistakes!
-  - 10% power-up drop rate
-  - Even faster ship turning speed (you'll need it!)
+  - 1.7x faster asteroids than standard
+  - 1.3x more asteroids per wave
+  - **2 UFOs active simultaneously!**
+  - 90% UFO accuracy (very precise!)
+  - UFOs spawn every 10-15 seconds
+  - Only 2 lives - stay sharp!
+  - 12% power-up drop rate
+  - Faster ship turning speed (you'll need it!)
 
 ## 🛠️ Technical Details
 
