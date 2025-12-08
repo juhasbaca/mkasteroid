@@ -1095,15 +1095,20 @@
 
             split() {
                 const newAsteroids = [];
-                const count = 2; // Aggressive optimization: always split into 2
+                const count = 2;
 
                 if (this.size === 'large') {
                     for (let i = 0; i < count; i++) {
-                        newAsteroids.push(new Asteroid(this.x, this.y, 'medium'));
+                        // Spread apart by 20 pixels in opposite directions
+                        const offsetX = (i === 0 ? -20 : 20);
+                        const offsetY = (i === 0 ? -20 : 20);
+                        newAsteroids.push(new Asteroid(this.x + offsetX, this.y + offsetY, 'medium'));
                     }
                 } else if (this.size === 'medium') {
                     for (let i = 0; i < count; i++) {
-                        newAsteroids.push(new Asteroid(this.x, this.y, 'small'));
+                        const offsetX = (i === 0 ? -15 : 15);
+                        const offsetY = (i === 0 ? -15 : 15);
+                        newAsteroids.push(new Asteroid(this.x + offsetX, this.y + offsetY, 'small'));
                     }
                 }
 
@@ -1586,10 +1591,13 @@
                 }
             }
 
-            // Ship vs UFO
-            if (ship && !ship.invulnerable && ufo) {
-                if (checkCollision(ship, ufo)) {
-                    handleShipHit();
+            // Ship vs UFO(s)
+            if (ship && !ship.invulnerable) {
+                for (let uIndex = 0; uIndex < ufos.length; uIndex++) {
+                    if (checkCollision(ship, ufos[uIndex])) {
+                        handleShipHit();
+                        break;
+                    }
                 }
             }
 
@@ -1617,7 +1625,7 @@
 
                         if (powerup.type === 'shield') {
                             activePowerups.shield.active = true;
-                            activePowerups.shield.timer = 15; // 15 seconds duration
+                            activePowerups.shield.timer = 8; // 8 seconds duration
                         } else if (powerup.type === 'tripleShot') {
                             activePowerups.tripleShot.active = true;
                             activePowerups.tripleShot.timer = 10;
