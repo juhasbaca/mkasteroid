@@ -142,7 +142,7 @@
         const VERSION = 'v1.2.0';
 
         // Performance limits
-        const MAX_ASTEROIDS = 40; // Aggressive optimization: limit total asteroids
+        const MAX_ASTEROIDS = 80; // Allow more asteroids for proper splitting
 
         // Game states
         const GAME_STATE = {
@@ -287,7 +287,7 @@
 
         // Power-up states
         let activePowerups = {
-            shield: false,
+            shield: { active: false, timer: 0 },
             tripleShot: { active: false, timer: 0 },
             rapidFire: { active: false, timer: 0 },
             magnet: { active: false, timer: 0 },
@@ -810,7 +810,7 @@
                 }
 
                 // Shield effect
-                if (activePowerups.shield) {
+                if (activePowerups.shield.active) {
                     ctx.strokeStyle = '#3b82f6';
                     ctx.lineWidth = 3;
                     ctx.shadowBlur = 15;
@@ -1616,7 +1616,8 @@
                         createExplosion(powerup.x, powerup.y, 20, [color]);
 
                         if (powerup.type === 'shield') {
-                            activePowerups.shield = true;
+                            activePowerups.shield.active = true;
+                            activePowerups.shield.timer = 15; // 15 seconds duration
                         } else if (powerup.type === 'tripleShot') {
                             activePowerups.tripleShot.active = true;
                             activePowerups.tripleShot.timer = 10;
@@ -1670,9 +1671,10 @@
         }
 
         function handleShipHit() {
-            if (activePowerups.shield) {
+            if (activePowerups.shield.active) {
                 // Shield absorbs hit
-                activePowerups.shield = false;
+                activePowerups.shield.active = false;
+                activePowerups.shield.timer = 0;
                 addFlash('#3b82f6', 0.5);
                 playSound('asteroidSmall');
                 createExplosion(ship.x, ship.y, 20, ['#3b82f6']);
@@ -1891,7 +1893,7 @@
             particlePool.pool.forEach(p => p.active = false);
 
             activePowerups = {
-                shield: false,
+                shield: { active: false, timer: 0 },
                 tripleShot: { active: false, timer: 0 },
                 rapidFire: { active: false, timer: 0 },
                 magnet: { active: false, timer: 0 },
@@ -1922,7 +1924,6 @@
                 }
 
                 // Update asteroids (with safety limit, affected by slow-mo)
-                const MAX_ASTEROIDS = 100;
                 if (asteroids.length > MAX_ASTEROIDS) {
                     console.warn('Too many asteroids, removing oldest');
                     asteroids.splice(0, asteroids.length - MAX_ASTEROIDS);
@@ -1979,6 +1980,12 @@
                 });
 
                 // Update powerup timers
+                if (activePowerups.shield.active) {
+                    activePowerups.shield.timer -= dt;
+                    if (activePowerups.shield.timer <= 0) {
+                        activePowerups.shield.active = false;
+                    }
+                }
                 if (activePowerups.tripleShot.active) {
                     activePowerups.tripleShot.timer -= dt;
                     if (activePowerups.tripleShot.timer <= 0) {
@@ -2364,13 +2371,13 @@
 
             // Power-up indicators
             let powerupY = canvas.height - 30;
-            if (activePowerups.shield) {
+            if (activePowerups.shield.active) {
                 ctx.font = 'bold 18px Courier New';
                 ctx.fillStyle = '#3b82f6';
                 ctx.textAlign = 'left';
                 ctx.shadowBlur = 10;
                 ctx.shadowColor = '#3b82f6';
-                ctx.fillText('SHIELD ACTIVE', 20, powerupY);
+                ctx.fillText(`SHIELD: ${Math.ceil(activePowerups.shield.timer)}s`, 20, powerupY);
                 powerupY -= 25;
             }
             if (activePowerups.tripleShot.active) {
@@ -2444,7 +2451,7 @@
 
             const difficulties = [DIFFICULTY.EASY, DIFFICULTY.MEDIUM, DIFFICULTY.HARD, DIFFICULTY.VERY_HARD];
             difficulties.forEach((diff, index) => {
-                const y = 310 + index * 60;
+                const y = 310 + index * 50;  // Reduced spacing from 60 to 50
                 const isSelected = selectedDifficulty === diff;
 
                 ctx.font = 'bold 24px Courier New';
@@ -2460,7 +2467,7 @@
             ctx.fillStyle = '#00ff41';
             ctx.shadowBlur = 15;
             ctx.shadowColor = '#00ff41';
-            ctx.fillText('PRESS ENTER TO START', canvas.width / 2, 500);
+            ctx.fillText('PRESS ENTER TO START', canvas.width / 2, 530);
 
             // Controls
             ctx.font = '18px Courier New';
@@ -2875,19 +2882,19 @@
                 const buttonWidth = 200;
                 const buttonHeight = 40;
 
-                // Check difficulty buttons (y: 310, 370, 430)
+                // Check difficulty buttons (y: 310, 360, 410, 460)
                 const difficulties = [DIFFICULTY.EASY, DIFFICULTY.MEDIUM, DIFFICULTY.HARD, DIFFICULTY.VERY_HARD];
                 difficulties.forEach((diff, index) => {
-                    const buttonY = 310 + index * 60;
+                    const buttonY = 310 + index * 50;
                     if (canvasX >= centerX - buttonWidth/2 && canvasX <= centerX + buttonWidth/2 &&
                         canvasY >= buttonY - buttonHeight/2 && canvasY <= buttonY + buttonHeight/2) {
                         selectedDifficulty = diff;
                     }
                 });
 
-                // Check START button (y: 500)
+                // Check START button (y: 530)
                 const startButtonWidth = 400;
-                const startButtonY = 500;
+                const startButtonY = 530;
                 if (canvasX >= centerX - startButtonWidth/2 && canvasX <= centerX + startButtonWidth/2 &&
                     canvasY >= startButtonY - buttonHeight/2 && canvasY <= startButtonY + buttonHeight/2) {
                     gameState = GAME_STATE.PLAYING;
@@ -2918,19 +2925,19 @@
                 const buttonWidth = 200;
                 const buttonHeight = 40;
 
-                // Check difficulty buttons (y: 310, 370, 430)
+                // Check difficulty buttons (y: 310, 360, 410, 460)
                 const difficulties = [DIFFICULTY.EASY, DIFFICULTY.MEDIUM, DIFFICULTY.HARD, DIFFICULTY.VERY_HARD];
                 difficulties.forEach((diff, index) => {
-                    const buttonY = 310 + index * 60;
+                    const buttonY = 310 + index * 50;
                     if (canvasX >= centerX - buttonWidth/2 && canvasX <= centerX + buttonWidth/2 &&
                         canvasY >= buttonY - buttonHeight/2 && canvasY <= buttonY + buttonHeight/2) {
                         selectedDifficulty = diff;
                     }
                 });
 
-                // Check START button (y: 500)
+                // Check START button (y: 530)
                 const startButtonWidth = 400;
-                const startButtonY = 500;
+                const startButtonY = 530;
                 if (canvasX >= centerX - startButtonWidth/2 && canvasX <= centerX + startButtonWidth/2 &&
                     canvasY >= startButtonY - buttonHeight/2 && canvasY <= startButtonY + buttonHeight/2) {
                     gameState = GAME_STATE.PLAYING;
