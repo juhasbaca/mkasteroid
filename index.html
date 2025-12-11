@@ -164,7 +164,12 @@
                 ufoSpawnMax: 30000,
                 ufoCount: 1,
                 lives: 4,
-                powerupChance: 0.5  // Zwiększone z 0.3 do 0.5 (50%)
+                powerupChance: 0.5,  // Zwiększone z 0.3 do 0.5 (50%)
+                description: 'Chill spacewalk with plenty of room to learn.',
+                highlights: [
+                    'Slower asteroids and an extra life keep things forgiving.',
+                    'Power-ups drop often so you can experiment safely.'
+                ]
             },
             MEDIUM: {
                 name: 'MEDIUM',
@@ -174,7 +179,12 @@
                 ufoSpawnMax: 25000,
                 ufoCount: 1,
                 lives: 3,
-                powerupChance: 0.4  // Zwiększone z 0.2 do 0.4 (40%)
+                powerupChance: 0.4,  // Zwiększone z 0.2 do 0.4 (40%)
+                description: 'Classic arcade balance of risk and reward.',
+                highlights: [
+                    'Default tuning with steady waves and focused UFO aim.',
+                    'Power-ups appear regularly without overpowering runs.'
+                ]
             },
             HARD: {
                 name: 'HARD',
@@ -185,7 +195,12 @@
                 ufoCount: 1,
                 lives: 2,
                 powerupChance: 0.35,  // Zwiększone z 0.15 do 0.35 (35%)
-                shipTurnSpeed: 1.3
+                shipTurnSpeed: 1.3,
+                description: 'Tight dodges and sharper enemies demand focus.',
+                highlights: [
+                    'Faster asteroids and stronger UFO accuracy keep pressure high.',
+                    'Fewer lives mean combos and power-ups matter more.'
+                ]
             },
             VERY_HARD: {
                 name: 'VERY HARD',
@@ -196,7 +211,12 @@
                 ufoCount: 2,  // DWA UFO NA RAZ!
                 lives: 2,
                 powerupChance: 0.3,
-                shipTurnSpeed: 1.5
+                shipTurnSpeed: 1.5,
+                description: 'Bullet-hell energy with relentless UFO squads.',
+                highlights: [
+                    'Double UFO spawns and rapid asteroids test ultimate awareness.',
+                    'Lean on precision to stretch limited power-ups and lives.'
+                ]
             }
         };
 
@@ -2470,12 +2490,32 @@
                 ctx.fillText(diff.name, canvas.width / 2, y);
             });
 
+            // Difficulty details
+            if (selectedDifficulty.description) {
+                ctx.font = '18px Courier New';
+                ctx.fillStyle = '#cbd5e1';
+                ctx.shadowBlur = 10;
+                ctx.shadowColor = '#00d9ff';
+                ctx.textAlign = 'center';
+                ctx.fillText(selectedDifficulty.description, canvas.width / 2, 500);
+
+                if (selectedDifficulty.highlights) {
+                    ctx.font = '16px Courier New';
+                    ctx.fillStyle = '#94a3b8';
+                    ctx.shadowBlur = 6;
+                    ctx.shadowColor = '#94a3b8';
+                    selectedDifficulty.highlights.forEach((line, index) => {
+                        ctx.fillText(line, canvas.width / 2, 530 + index * 22);
+                    });
+                }
+            }
+
             // Start button
             ctx.font = 'bold 32px Courier New';
             ctx.fillStyle = '#00ff41';
             ctx.shadowBlur = 15;
             ctx.shadowColor = '#00ff41';
-            ctx.fillText('PRESS ENTER TO START', canvas.width / 2, 530);
+            ctx.fillText('PRESS ENTER TO START', canvas.width / 2, 610);
 
             // Controls
             ctx.font = '18px Courier New';
@@ -2484,11 +2524,11 @@
             ctx.shadowColor = '#7209b7';
             ctx.textAlign = 'left';
             const controlsX = canvas.width / 2 - 150;
-            ctx.fillText('← →  : Rotate', controlsX, 560);
-            ctx.fillText('↑    : Thrust', controlsX, 585);
-            ctx.fillText('SPACE: Shoot', controlsX, 610);
-            ctx.fillText('P    : Pause', controlsX, 635);
-            ctx.fillText('M    : Mute', controlsX, 660);
+            ctx.fillText('← →  : Rotate', controlsX, 650);
+            ctx.fillText('↑    : Thrust', controlsX, 675);
+            ctx.fillText('SPACE: Shoot', controlsX, 700);
+            ctx.fillText('P    : Pause', controlsX, 725);
+            ctx.fillText('M    : Mute', controlsX, 750);
 
             // Version number
             ctx.font = '14px Courier New';
@@ -2900,9 +2940,9 @@
                     }
                 });
 
-                // Check START button (y: 530)
+                // Check START button (y: 610)
                 const startButtonWidth = 400;
-                const startButtonY = 530;
+                const startButtonY = 610;
                 if (canvasX >= centerX - startButtonWidth/2 && canvasX <= centerX + startButtonWidth/2 &&
                     canvasY >= startButtonY - buttonHeight/2 && canvasY <= startButtonY + buttonHeight/2) {
                     gameState = GAME_STATE.PLAYING;
@@ -2943,9 +2983,9 @@
                     }
                 });
 
-                // Check START button (y: 530)
+                // Check START button (y: 610)
                 const startButtonWidth = 400;
-                const startButtonY = 530;
+                const startButtonY = 610;
                 if (canvasX >= centerX - startButtonWidth/2 && canvasX <= centerX + startButtonWidth/2 &&
                     canvasY >= startButtonY - buttonHeight/2 && canvasY <= startButtonY + buttonHeight/2) {
                     gameState = GAME_STATE.PLAYING;
